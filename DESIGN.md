@@ -1,0 +1,89 @@
+# Jarvis — Design
+
+A personal daily-planning assistant. Ben talks to an iPhone app for ~10 minutes each
+morning to align priorities, triage to-dos, and time-box the day into his calendar —
+like a chief-of-staff stand-up. The conversation produces real calendar events and
+draft messages, giving each day a clearer sense of purpose.
+
+## Architecture
+
+```
+iPhone (SwiftUI)                 Raspberry Pi (over tailnet)         Cloud APIs
+─────────────────                ───────────────────────────        ──────────
+push-to-talk + text  ──HTTPS──▶  orchestrator service         ──▶   Claude Haiku (the brain)
+Apple STT + TTS                  holds all secrets/tokens      ──▶   Google Calendar (read+write)
+morning reminder                 memory store (files)          ──▶   Trello (read)
+approval / draft view  ◀──────   returns transcript + actions
+```
+
+- **iOS app (native SwiftUI):** conversation UI (push-to-talk + text), on-device
+  speech-to-text (`SFSpeechRecognizer`) and text-to-speech (`AVSpeechSynthesizer`),
+  a daily morning reminder (local notification), and a view to approve/copy message
+  drafts and see proposed/created calendar changes. Talks to the Pi over one HTTPS
+  endpoint.
+- **Backend (Raspberry Pi, single-user):** a small orchestrator service, reached over
+  the existing Tailscale tailnet. Holds all secrets (Anthropic key, Google OAuth token,
+  Trello key/token). Runs the Claude conversation with tool-use and returns the
+  transcript plus proposed/executed actions.
+- **LLM:** Claude Haiku to start, kept behind a single call site so it can be swapped
+  later (no abstraction layer built up front).
+
+### Why the Pi (latency vs security)
+
+The Pi is an **I/O-bound orchestrator** — no model runs on it; it just relays kilobytes
+of text to Claude/Google/Trello. So its CPU and home broadband are irrelevant to speed;
+the tailnet hop is ~1–5% of a turn's latency, which is dominated by the LLM and voice.
+In exchange you get a real security win (secrets never leave hardware you own; no public
+attack surface) and zero hosting cost. The genuine constraints are uptime (single point
+of failure) and no inbound webhooks — so we **poll** calendar/Trello on demand each
+morning rather than subscribing to push. If the Pi ever proves flaky, moving the same
+backend to a cheap cloud box is a config change, not a redesign.
+
+## Memory (two tiers, stored on the Pi)
+
+1. **"About Ben" profile** — perpetual, edited rarely, fed into every session's system
+   prompt:
+   - priorities: short / medium / long-term, split life vs work
+   - explicit scheduling rules: work hours, lunch, focus blocks, **sacred family time**
+   - preferences: exercise habits, in-person vs remote meeting patterns
+   - delighters: what makes a day feel good and performant
+2. **Rolling state** — the fluid layer: yesterday's plan, what slipped, priorities being
+   pushed forward, recent session summaries. This is what makes it feel like an assistant
+   who remembers.
+
+Live calendar and Trello state are pulled fresh each session.
+
+## Behaviour
+
+- **Autonomy:** writes Ben's own time-boxes directly to Google Calendar; messages to
+  other people are drafted for Ben to copy/paste (no automatic send).
+- **Scheduling constraints:** taken from explicit rules in the profile, treated as
+  guardrails.
+- **Session trigger:** a daily morning reminder (local notification).
+
+## Build phases
+
+Ship the smallest thing that delivers the magic first.
+
+| Phase | Deliverable |
+|---|---|
+| **0** | Pi backend reachable over tailnet; phone → Pi → Claude text round-trip |
+| **1** | Read-only: Calendar + Trello + "About Ben" profile → a **proposed** morning plan (no writes) |
+| **2** | Calendar **writes** (own time-boxes) + message drafts to copy |
+| **3** | Voice both ways (Apple STT/TTS) + morning reminder notification |
+
+### Later (earn-their-place TODOs)
+
+- Realtime cloud voice API (nicer, customisable voice) instead of Apple TTS
+- Work calendar via Microsoft Graph / Outlook (security permitting)
+- Gmail drafts instead of copy/paste messages
+- Swap Claude Haiku for another model (possibly open-source)
+
+## Deployment
+
+Native app for personal daily use — skip the App Store.
+
+- **Free Apple ID sideload:** works but the install expires every 7 days and must be
+  re-signed via Xcode. Painful for daily use.
+- **Paid Apple Developer ($99/yr) — recommended:** installs last a year, plus TestFlight.
+  Worth it to never think about re-signing something you open every morning.
