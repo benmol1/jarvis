@@ -17,8 +17,8 @@ COPY requirements.txt .
 # Create virtual environment and install dependencies
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir uv && \
+    uv pip install --no-cache-dir -r requirements.txt
 
 # Final stage - use lightweight alpine base with Python
 FROM python:3.11-alpine
