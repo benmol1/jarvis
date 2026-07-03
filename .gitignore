@@ -7,6 +7,9 @@ xcuserdata/
 backend/about_ben.md
 backend/state.json
 
+# Local scripts with credentials
+backend/scripts/
+
 # IDE
 .idea/
 .vscode/

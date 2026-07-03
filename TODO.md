@@ -1,11 +1,11 @@
 # Jarvis — TODO
 
-*Last updated: 2026-07-03 15:35*
+*Last updated: 2026-07-03 21:13*
 
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
 
-## Phase 0 — Plumbing ⏳ IN PROGRESS
+## Phase 0 — Plumbing ✅ COMPLETE
 
 Prove the phone → Pi → Claude text round-trip.
 
@@ -25,7 +25,7 @@ Prove the phone → Pi → Claude text round-trip.
 - [x] Confirm the Pi is reachable over the tailnet (Tailscale hostname + port)
   - [x] Test: `curl http://raspberry-pi:8000/health` from iPhone Safari
 - [x] Minimal SwiftUI app: text box, send button, shows reply
-- [ ] Round-trip works: type on phone → Pi → Claude → reply on phone
+- [x] Round-trip works: type on phone → Pi → Claude → reply on phone
 
 ## Phase 1 — Read-only proposed plan ⏳ IN PROGRESS
 
@@ -33,13 +33,22 @@ The core value, zero write risk.
 
 - [x] Create the "About Ben" profile store (a file on the Pi: priorities, scheduling rules, preferences, delighters)
 - [ ] Google Calendar OAuth: one-time setup, store token on the Pi
+  - BLOCKED: Need to add ben.molyneaux1@gmail.com as test user in Google Cloud OAuth consent screen (error: "jarvis has not completed the Google verification process")
+  - Steps: Console → APIs & Services → OAuth consent screen → Test users → + ADD USERS
+  - Then run token script to get refresh_token
+  - Required .env vars: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN
 - [x] Calendar **read** tool for Claude (fetch today's / this week's events)
-- [ ] Trello auth (API key + token) stored on the Pi
+- [x] Trello auth (API key + token) stored on the Pi
+  - Code complete: trello_tool.py reads from TRELLO_API_KEY, TRELLO_TOKEN, TRELLO_BOARD_ID
+  - User has credentials; needs adding to .env on Pi + redeploy
 - [x] Trello **read** tool for Claude (fetch cards/lists)
 - [x] Rolling-state store (yesterday's plan, what slipped, carried-forward priorities)
 - [x] System prompt assembles: profile + rolling state + live calendar + Trello
 - [ ] Morning conversation produces a **proposed** time-boxed plan (text only, no writes)
+  - TODO: Update prompt.py to instruct Claude to output structured plan
+  - TODO: Add plan parsing to extract time-boxes from Claude response
 - [ ] Display the proposed plan clearly in the app
+  - TODO: Update iOS ContentView with dedicated plan display
 
 ## Phase 2 — Calendar writes + message drafts
 
