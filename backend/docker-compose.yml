@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  jarvis:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jarvis-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist profile and state data
+      - ./data:/data
+      # Mount profile file (optional - can use volume instead)
+      - ./about_ben.md:/data/about_ben.md:ro
+    env_file:
+      - .env
+    environment:
+      - JARVIS_PROFILE_PATH=/data/about_ben.md
+      - JARVIS_STATE_PATH=/data/state.json
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - jarvis-network
+
+networks:
+  jarvis-network:
+    driver: bridge

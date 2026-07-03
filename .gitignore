@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+.DS_Store
+xcuserdata/
+backend/about_ben.md
+backend/state.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

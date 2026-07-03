@@ -1,31 +1,43 @@
 # Jarvis — TODO
 
+*Last updated: 2026-07-03 15:15*
+
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
 
-## Phase 0 — Plumbing
+## Phase 0 — Plumbing ⏳ IN PROGRESS
 
 Prove the phone → Pi → Claude text round-trip.
 
-- [ ] Pick backend language/framework (default: Python + FastAPI)
+- [x] Pick backend language/framework (default: Python + FastAPI)
+- [x] Dockerize the backend for Pi deployment
+  - [x] Create Dockerfile (multi-stage, Python alpine base for ARM compatibility)
+  - [x] Create docker-compose.yml with port mapping (8000:8000)
+  - [x] Configure volume mounts for profile and state persistence
+  - [x] Add healthcheck to container
 - [ ] Set up the orchestrator service on the Pi (single `/chat` endpoint, takes text, returns text)
+  - [ ] Install Docker on Raspberry Pi
+  - [ ] Build and run container: `docker compose up -d`
 - [ ] Store the Anthropic API key as a secret on the Pi (env file, not in code)
-- [ ] Wire the `/chat` endpoint to Claude Haiku (single call site, easy to swap later)
+  - [ ] Create `.env` file on Pi with `ANTHROPIC_API_KEY=...`
+  - [x] Ensure `.env` is in `.dockerignore`
+- [x] Wire the `/chat` endpoint to Claude Haiku (single call site, easy to swap later)
 - [ ] Confirm the Pi is reachable over the tailnet (Tailscale hostname + port)
-- [ ] Minimal SwiftUI app: text box, send button, shows reply
+  - [ ] Test: `curl http://jarvis-pi:8000/chat -X POST -H "Content-Type: application/json" -d '{"message":"hello"}'`
+- [x] Minimal SwiftUI app: text box, send button, shows reply
 - [ ] Round-trip works: type on phone → Pi → Claude → reply on phone
 
-## Phase 1 — Read-only proposed plan
+## Phase 1 — Read-only proposed plan ⏳ IN PROGRESS
 
 The core value, zero write risk.
 
-- [ ] Create the "About Ben" profile store (a file on the Pi: priorities, scheduling rules, preferences, delighters)
+- [x] Create the "About Ben" profile store (a file on the Pi: priorities, scheduling rules, preferences, delighters)
 - [ ] Google Calendar OAuth: one-time setup, store token on the Pi
-- [ ] Calendar **read** tool for Claude (fetch today's / this week's events)
+- [x] Calendar **read** tool for Claude (fetch today's / this week's events)
 - [ ] Trello auth (API key + token) stored on the Pi
-- [ ] Trello **read** tool for Claude (fetch cards/lists)
-- [ ] Rolling-state store (yesterday's plan, what slipped, carried-forward priorities)
-- [ ] System prompt assembles: profile + rolling state + live calendar + Trello
+- [x] Trello **read** tool for Claude (fetch cards/lists)
+- [x] Rolling-state store (yesterday's plan, what slipped, carried-forward priorities)
+- [x] System prompt assembles: profile + rolling state + live calendar + Trello
 - [ ] Morning conversation produces a **proposed** time-boxed plan (text only, no writes)
 - [ ] Display the proposed plan clearly in the app
 
