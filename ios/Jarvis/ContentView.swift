@@ -1,7 +1,7 @@
 import SwiftUI
 
 // ponytail: hardcoded tailnet URL, swap for a settings field if the Pi's hostname changes often
-private let backendURL = URL(string: "http://jarvis-pi:8000/chat")!
+private let backendURL = URL(string: "http://raspberry-pi:8000/chat")!
 
 struct ChatRequest: Encodable { let message: String }
 struct ChatResponse: Decodable { let reply: String }
