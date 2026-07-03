@@ -1,6 +1,6 @@
 # Jarvis — TODO
 
-*Last updated: 2026-07-03 15:15*
+*Last updated: 2026-07-03 15:35*
 
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
@@ -15,15 +15,15 @@ Prove the phone → Pi → Claude text round-trip.
   - [x] Create docker-compose.yml with port mapping (8000:8000)
   - [x] Configure volume mounts for profile and state persistence
   - [x] Add healthcheck to container
-- [ ] Set up the orchestrator service on the Pi (single `/chat` endpoint, takes text, returns text)
-  - [ ] Install Docker on Raspberry Pi
-  - [ ] Build and run container: `docker compose up -d`
+- [x] Set up the orchestrator service on the Pi (single `/chat` endpoint, takes text, returns text)
+  - [x] Install Docker on Raspberry Pi
+  - [x] Build and run container: `docker compose up -d`
 - [ ] Store the Anthropic API key as a secret on the Pi (env file, not in code)
   - [ ] Create `.env` file on Pi with `ANTHROPIC_API_KEY=...`
   - [x] Ensure `.env` is in `.dockerignore`
 - [x] Wire the `/chat` endpoint to Claude Haiku (single call site, easy to swap later)
-- [ ] Confirm the Pi is reachable over the tailnet (Tailscale hostname + port)
-  - [ ] Test: `curl http://jarvis-pi:8000/chat -X POST -H "Content-Type: application/json" -d '{"message":"hello"}'`
+- [x] Confirm the Pi is reachable over the tailnet (Tailscale hostname + port)
+  - [x] Test: `curl http://raspberry-pi:8000/health` from iPhone Safari
 - [x] Minimal SwiftUI app: text box, send button, shows reply
 - [ ] Round-trip works: type on phone → Pi → Claude → reply on phone
 
