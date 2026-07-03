@@ -18,8 +18,8 @@ Prove the phone → Pi → Claude text round-trip.
 - [x] Set up the orchestrator service on the Pi (single `/chat` endpoint, takes text, returns text)
   - [x] Install Docker on Raspberry Pi
   - [x] Build and run container: `docker compose up -d`
-- [ ] Store the Anthropic API key as a secret on the Pi (env file, not in code)
-  - [ ] Create `.env` file on Pi with `ANTHROPIC_API_KEY=...`
+- [x] Store the Anthropic API key as a secret on the Pi (env file, not in code)
+  - [x] Create `.env` file on Pi with `ANTHROPIC_API_KEY=...`
   - [x] Ensure `.env` is in `.dockerignore`
 - [x] Wire the `/chat` endpoint to Claude Haiku (single call site, easy to swap later)
 - [x] Confirm the Pi is reachable over the tailnet (Tailscale hostname + port)
