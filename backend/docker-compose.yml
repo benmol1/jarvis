@@ -10,8 +10,6 @@ services:
     volumes:
       # Persist profile and state data
       - ./data:/data
-      # Mount profile file (optional - can use volume instead)
-      - ./about_ben.md:/data/about_ben.md:ro
     env_file:
       - .env
     environment:
