@@ -1,11 +1,12 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+import os
 
 from calendar_tool import get_upcoming_events
 
 
 def test_get_upcoming_events_parses_items():
-    service = MagicMock()
-    service.events.return_value.list.return_value.execute.return_value = {
+    mock_service = MagicMock()
+    mock_service.events.return_value.list.return_value.execute.return_value = {
         "items": [
             {
                 "summary": "Standup",
@@ -19,7 +20,13 @@ def test_get_upcoming_events_parses_items():
         ]
     }
 
-    events = get_upcoming_events(service)
+    with patch.dict(os.environ, {
+        "GOOGLE_CLIENT_ID": "test_id",
+        "GOOGLE_CLIENT_SECRET": "test_secret",
+        "GOOGLE_REFRESH_TOKEN": "test_refresh_token",
+    }):
+        with patch('calendar_tool.build', return_value=mock_service):
+            events = get_upcoming_events()
 
     assert events == [
         {"summary": "Standup", "start": "2026-07-03T09:00:00Z", "end": "2026-07-03T09:15:00Z"},
