@@ -5,9 +5,11 @@
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
 
-## Phase 0 — Plumbing ✅ COMPLETE
+## Phase 0 — Plumbing ⚠️ IN PROGRESS
 
 Prove the phone → Pi → Claude text round-trip.
+
+Backend is complete; iOS app needed to complete end-to-end round-trip.
 
 - [x] Pick backend language/framework (default: Python + FastAPI)
 - [x] Dockerize the backend for Pi deployment
@@ -24,8 +26,42 @@ Prove the phone → Pi → Claude text round-trip.
 - [x] Wire the `/chat` endpoint to Claude Haiku (single call site, easy to swap later)
 - [x] Confirm the Pi is reachable over the tailnet (Tailscale hostname + port)
   - [x] Test: `curl http://raspberry-pi:8000/health` from iPhone Safari
-- [x] Minimal SwiftUI app: text box, send button, shows reply
-- [x] Round-trip works: type on phone → Pi → Claude → reply on phone
+- [ ] Minimal SwiftUI app: text box, send button, shows reply (see iOS App Setup block)
+- [ ] Round-trip works: type on phone → Pi → Claude → reply on phone (see iOS App Setup block)
+
+## iOS App Setup ⏳ BLOCKED
+
+Create and deploy the iOS app to actually use Jarvis on the phone.
+
+- [ ] Set up Xcode on MacBook
+  - Install Xcode from App Store
+  - Accept license agreements
+  - Install command line tools: `xcode-select --install`
+- [ ] Create new iOS project in `ios/` directory
+  - SwiftUI-based, minimum deployment iOS 17+
+  - Name: Jarvis
+- [ ] Configure app networking
+  - Add `NSAppTransportSecurity` / `NSAllowsArbitraryLoads` to Info.plist for local Pi access
+  - Or configure specific exception for `raspberry-pi` hostname
+- [ ] Build basic UI (ContentView.swift)
+  - Text input field for user message
+  - Send button
+  - Scrollable response area
+  - Loading indicator
+- [ ] Wire UI to backend
+  - POST to `http://raspberry-pi:8000/chat` endpoint
+  - Handle JSON serialization/deserialization
+  - Error handling for network failures
+- [ ] Test on iPhone Simulator
+  - Verify text round-trip works
+  - Verify response display
+- [ ] Test on physical iPhone via USB
+  - Verify Tailnet connectivity to Pi
+  - Test actual on-device usage
+- [ ] App Store prep (future)
+  - Bundle ID, icons, display name
+
+---
 
 ## Phase 1 — Read-only proposed plan ⏳ IN PROGRESS
 
