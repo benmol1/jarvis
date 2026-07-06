@@ -1,6 +1,6 @@
 # Jarvis — TODO
 
-*Last updated: 2026-07-06 17:58*
+*Last updated: 2026-07-06 20:30*
 
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
@@ -32,16 +32,13 @@ Prove the phone → Pi → Claude text round-trip.
 The core value, zero write risk.
 
 - [x] Create the "About Ben" profile store (a file on the Pi: priorities, scheduling rules, preferences, delighters)
-- [x] Google Calendar OAuth integration (code complete)
-  - BLOCKED on deployment: Need to add ben.molyneaux1@gmail.com as test user in Google Cloud OAuth consent screen (error: "jarvis has not completed the Google verification process")
-  - Steps: Console → APIs & Services → OAuth consent screen → Test users → + ADD USERS
-  - Then run token script to get refresh_token
-  - Required .env vars: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN
+- [x] Google Calendar OAuth integration (deployed & verified)
   - Code: calendar_tool.py get_calendar_service(), requirements.txt updated, .env.example updated
+  - Tested: Live calendar events successfully returned via /chat endpoint
 - [x] Calendar **read** tool for Claude (fetch today's / this week's events)
-- [x] Trello auth (API key + token) stored on the Pi
-  - Code complete: trello_tool.py reads from TRELLO_API_KEY, TRELLO_TOKEN, TRELLO_BOARD_ID
-  - User has credentials; needs adding to .env on Pi + redeploy
+- [x] Trello auth (API key + token) stored on the Pi (deployed & verified)
+  - Code: trello_tool.py reads from TRELLO_API_KEY, TRELLO_TOKEN, TRELLO_BOARD_ID
+  - Tested: Trello cards successfully returned via /chat endpoint
 - [x] Trello **read** tool for Claude (fetch cards/lists)
 - [x] Rolling-state store (yesterday's plan, what slipped, carried-forward priorities)
 - [x] System prompt assembles: profile + rolling state + live calendar + Trello
