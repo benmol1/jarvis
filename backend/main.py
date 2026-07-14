@@ -2,7 +2,9 @@ import logging
 import os
 
 from anthropic import Anthropic
+from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from calendar_tool import get_upcoming_events
@@ -10,6 +12,10 @@ from profile_store import load_profile
 from prompt import build_system_prompt
 from state import load_state
 from trello_tool import get_cards
+
+# Load backend/.env before reading os.environ below. No-op in Docker, which
+# injects vars via compose's env_file instead.
+load_dotenv()
 
 app = FastAPI()
 client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
@@ -61,3 +67,8 @@ def chat(req: ChatRequest) -> ChatResponse:
         ],
     )
     return ChatResponse(reply=response.content[0].text)
+
+
+# Serve the web front-end. Mounted last so /chat and /health match first; the
+# page fetches /chat same-origin, so no CORS is needed.
+app.mount("/", StaticFiles(directory="static", html=True), name="static")

@@ -145,10 +145,12 @@ The 10-minute ritual feel.
 
 Same `/chat` backend, a second client. No new framework — plain HTML + fetch, served as a static file.
 
-- [ ] Add `backend/static/index.html`: textarea, send button, response area, plain JS `fetch()` to `/chat`
-- [ ] Mount it in FastAPI with `StaticFiles` (stdlib-adjacent, already a FastAPI dependency)
-- [ ] Reuse existing CORS/auth as needed for browser access over the tailnet
-- [ ] Confirm plan display works in a wide viewport (no mobile constraints to design around)
+- [x] Add `backend/static/index.html`: textarea, send button, transcript view, plain JS `fetch()` to `/chat`
+- [x] Mount it in FastAPI with `StaticFiles` (mounted last so `/chat` + `/health` match first)
+- [x] Reuse existing CORS/auth as needed for browser access over the tailnet
+  - No CORS needed: the page is served by the backend, so `fetch('/chat')` is same-origin. No auth exists to reuse.
+- [~] Confirm plan display works in a wide viewport (no mobile constraints to design around)
+  - Page is 800px-max centred, transcript style; structured plan display still pending Phase 1
 - [ ] (Later) Persist chat history in the page via `localStorage` if useful
 
 Not building: an in-app calendar/Trello view. Jarvis's writes already show up in the real Google Calendar/Trello apps — use those side-by-side with Jarvis instead of replicating their UI.

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jarvis</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🤖</text></svg>">
+
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font: 16px/1.5 system-ui, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+    h1 { font-size: 1.3rem; }
+    #log { display: flex; flex-direction: column; gap: .75rem; margin-bottom: 1rem; }
+    .msg { padding: .6rem .9rem; border-radius: .6rem; white-space: pre-wrap; }
+    .you { background: #0b6bcb; color: #fff; align-self: flex-end; max-width: 80%; }
+    .jarvis { background: rgba(127,127,127,.15); align-self: flex-start; max-width: 80%; }
+    .jarvis.error { background: rgba(220,50,50,.18); }
+    form { display: flex; gap: .5rem; }
+    textarea { flex: 1; font: inherit; padding: .5rem; resize: vertical; min-height: 3rem; }
+    button { font: inherit; padding: 0 1.2rem; }
+  </style>
+</head>
+<body>
+  <h1>Jarvis</h1>
+  <div id="log"></div>
+  <form id="form">
+    <textarea id="input" placeholder="Ask Jarvis&hellip;" autofocus></textarea>
+    <button type="submit">Send</button>
+  </form>
+
+  <script>
+    const log = document.getElementById("log");
+    const form = document.getElementById("form");
+    const input = document.getElementById("input");
+
+    function add(text, cls) {
+      const div = document.createElement("div");
+      div.className = "msg " + cls;
+      div.textContent = text;
+      log.append(div);
+      div.scrollIntoView();
+      return div;
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const message = input.value.trim();
+      if (!message) return;
+      add(message, "you");
+      input.value = "";
+      const pending = add("…", "jarvis");
+      try {
+        // Same origin as this page, so no CORS. Backend is stateless: it only
+        // sees this one message, not the transcript above.
+        const res = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message }),
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        pending.textContent = data.reply;
+      } catch (err) {
+        pending.textContent = "Error: " + err.message;
+        pending.classList.add("error");
+      }
+    });
+
+    // Enter sends, Shift+Enter for newline.
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        form.requestSubmit();
+      }
+    });
+  </script>
+</body>
+</html>
