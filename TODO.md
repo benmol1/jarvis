@@ -104,6 +104,18 @@ The 10-minute ritual feel.
 - [ ] Conversation UI works hands-free (speak → hear response)
 - [ ] Daily morning reminder (local notification)
 
+## Phase 4 — Desktop web front-end
+
+Same `/chat` backend, a second client. No new framework — plain HTML + fetch, served as a static file.
+
+- [ ] Add `backend/static/index.html`: textarea, send button, response area, plain JS `fetch()` to `/chat`
+- [ ] Mount it in FastAPI with `StaticFiles` (stdlib-adjacent, already a FastAPI dependency)
+- [ ] Reuse existing CORS/auth as needed for browser access over the tailnet
+- [ ] Confirm plan display works in a wide viewport (no mobile constraints to design around)
+- [ ] (Later) Persist chat history in the page via `localStorage` if useful
+
+Not building: an in-app calendar/Trello view. Jarvis's writes already show up in the real Google Calendar/Trello apps — use those side-by-side with Jarvis instead of replicating their UI.
+
 ## Later — earn-their-place TODOs
 
 - [ ] Realtime cloud voice API (nicer, customisable voice) instead of Apple TTS
