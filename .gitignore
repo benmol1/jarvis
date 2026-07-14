@@ -7,8 +7,10 @@ xcuserdata/
 backend/about_ben.md
 backend/state.json
 
-# Local scripts with credentials
+# Local scripts with credentials in them — drop them here and they stay out of git.
 backend/scripts/
+# ...except this one, which takes its credentials from the environment.
+!backend/scripts/reauth_google.py
 
 # IDE
 .idea/
