@@ -1,3 +1,4 @@
+import logging
 import os
 
 from anthropic import Anthropic
@@ -12,6 +13,20 @@ from calendar_tool import get_upcoming_events
 
 app = FastAPI()
 client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+logger = logging.getLogger(__name__)
+
+
+def fetch_context(fetch, source: str) -> list[dict]:
+    """Fetch context for the prompt, degrading to no data if the source fails.
+
+    A missing credential or a dead upstream should cost us that section of the
+    prompt, not the whole conversation.
+    """
+    try:
+        return fetch()
+    except Exception:
+        logger.warning("%s unavailable; continuing without it", source, exc_info=True)
+        return []
 
 
 @app.get("/health")
@@ -32,23 +47,12 @@ class ChatResponse(BaseModel):
 def chat(req: ChatRequest) -> ChatResponse:
     profile = load_profile()
     state = load_state()
-    
-    # Try to get Trello cards if credentials are configured
-    try:
-        cards = get_cards()
-    except (KeyError, ImportError):
-        # Missing Trello env vars or module issue - use empty list
-        cards = []
-    
-    # Try to get calendar events if credentials are configured
-    try:
-        events = get_upcoming_events()
-    except (KeyError, ImportError):
-        # Missing Google Calendar env vars or module issue - use empty list
-        events = []
-    
+    cards = fetch_context(get_cards, "trello")
+    events = fetch_context(get_upcoming_events, "calendar")
+
     system_prompt = build_system_prompt(profile, state, events, cards)
-    
+
+
     response = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=1024,
