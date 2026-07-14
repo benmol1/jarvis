@@ -1,6 +1,6 @@
 # Jarvis — TODO
 
-*Last updated: 2026-07-14 20:14*
+*Last updated: 2026-07-14 21:56*
 
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
@@ -141,11 +141,13 @@ The 10-minute ritual feel.
 - [ ] Conversation UI works hands-free (speak → hear response)
 - [ ] Daily morning reminder (local notification)
 
-## Phase 4 — Desktop web front-end
+## Phase 4 — Desktop web front-end ⏳ IN PROGRESS
 
 Same `/chat` backend, a second client. No new framework — plain HTML + fetch, served as a static file.
 
 - [x] Add `backend/static/index.html`: textarea, send button, transcript view, plain JS `fetch()` to `/chat`
+  - Inline emoji favicon (data URI) so the browser stops requesting `/favicon.ico` (was a harmless 404)
+- [x] Load `backend/.env` via `python-dotenv` so `uv run uvicorn` picks up the API key locally (no-op in Docker)
 - [x] Mount it in FastAPI with `StaticFiles` (mounted last so `/chat` + `/health` match first)
 - [x] Reuse existing CORS/auth as needed for browser access over the tailnet
   - No CORS needed: the page is served by the backend, so `fetch('/chat')` is same-origin. No auth exists to reuse.
