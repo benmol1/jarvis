@@ -1,0 +1,30 @@
+[project]
+name = "jarvis-backend"
+version = "0.1.0"
+description = "Jarvis daily-planning assistant backend"
+# Matches the python:3.11-slim base image in the Dockerfile.
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.116.0",
+    "fastapi>=0.139.0",
+    "google-api-python-client>=2.198.0",
+    "google-auth-httplib2>=0.4.0",
+    "google-auth-oauthlib>=1.4.0",
+    "requests>=2.34.2",
+    "uvicorn>=0.51.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",  # required by fastapi's TestClient
+    "pytest>=9.1.1",
+]
+
+[tool.uv]
+# The app is a set of modules run by uvicorn, not an installable package.
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The app modules live in the backend root, not an installed package.
+pythonpath = ["."]
