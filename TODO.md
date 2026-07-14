@@ -1,6 +1,6 @@
 # Jarvis — TODO
 
-*Last updated: 2026-07-14 19:47*
+*Last updated: 2026-07-14 20:14*
 
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
@@ -9,8 +9,8 @@ before starting the next.
 
 Prove the phone → Pi → Claude text round-trip.
 
-Backend serves `/chat`; iOS app needed to complete the end-to-end round-trip.
-(Calendar data is currently missing — see the expired Google token under Phase 1.)
+Backend serves `/chat` with live calendar + Trello data; iOS app needed to complete the
+end-to-end round-trip.
 
 - [x] Pick backend language/framework (default: Python + FastAPI)
 - [x] Dockerize the backend for Pi deployment
@@ -73,7 +73,7 @@ work at home and fail everywhere else.
 
 ---
 
-## Backend hardening & repo hygiene ⏳ IN PROGRESS
+## Backend hardening & repo hygiene ✅ COMPLETE
 
 Unplanned work, triggered by finding `/chat` returning a 500 while `/health` stayed green.
 
@@ -89,8 +89,11 @@ Unplanned work, triggered by finding `/chat` returning a 500 while `/health` sta
 - [x] Move test files into `backend/tests/` (`pythonpath`/`testpaths` set in `pyproject.toml`)
 - [x] Switch the Dockerfile to `uv sync --frozen` (multi-stage; deleted `requirements.txt`)
   - Single source of dependency truth; no more requirements/pyproject drift
-- [ ] Verify the new image builds and `/chat` still answers
-  - Docker Desktop wasn't running locally; **not yet verified — do this before deploying to the Pi**
+- [x] Add `ruff` for formatting + linting (dev dependency; config in `pyproject.toml`)
+  - Note: ruff's `UP` rules rewrote `timezone.utc` → `UTC`, which is 3.11+ only — safe only
+    because `requires-python` now matches the image
+- [x] Verify the new image builds and `/chat` still answers
+  - Built and deployed on the Pi: `uv sync --frozen` resolves on ARM, service serves from it
 
 ## Phase 1 — Read-only proposed plan ⏳ IN PROGRESS
 
@@ -100,11 +103,11 @@ The core value, zero write risk.
 - [x] Google Calendar OAuth integration (deployed & verified)
   - Code: calendar_tool.py get_calendar_service(), deps added, .env.example updated
   - Tested: Live calendar events successfully returned via /chat endpoint
-- [ ] ⚠️ **BROKEN: Google refresh token expired** (`invalid_grant: Token has been expired or revoked`)
-  - Root cause: OAuth consent screen is in **Testing** status → Google expires refresh tokens after 7 days
-  - [ ] Publish the OAuth app to **Production** in Google Cloud Console (else this recurs weekly)
-  - [ ] Re-mint `GOOGLE_REFRESH_TOKEN`, update the Pi's `.env`, redeploy
-  - Chat no longer 500s on this (see Backend hardening), but Jarvis plans **without calendar data** until fixed
+- [x] **Fixed: expired Google refresh token** (`invalid_grant: Token has been expired or revoked`)
+  - Root cause: OAuth consent screen was in **Testing** status → Google expires refresh tokens after 7 days
+  - [x] Publish the OAuth app to **Production** in Google Cloud Console (stops it recurring weekly)
+  - [x] Re-mint `GOOGLE_REFRESH_TOKEN` (`backend/reauth_google.py`), update the Pi's `.env`, redeploy
+  - Verified end-to-end: `/chat` correctly named a real upcoming event from the live calendar
 - [x] Calendar **read** tool for Claude (fetch today's / this week's events)
 - [x] Trello auth (API key + token) stored on the Pi (deployed & verified)
   - Code: trello_tool.py reads from TRELLO_API_KEY, TRELLO_TOKEN, TRELLO_BOARD_ID

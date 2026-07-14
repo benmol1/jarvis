@@ -54,6 +54,9 @@ state.json
 # Docker build artifacts
 # (Dockerfile and docker-compose.yml are committed to repo)
 
+# Local ops scripts (not part of the service)
+reauth_google.py
+
 # Test
 tests/
 .pytest_cache/
