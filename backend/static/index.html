@@ -47,6 +47,10 @@
       return div;
     }
 
+    // Session memory: the browser holds the conversation and replays it each
+    // call. Lives as long as the page is open (reload clears it).
+    const history = [];
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const message = input.value.trim();
@@ -55,16 +59,18 @@
       input.value = "";
       const pending = add("…", "jarvis");
       try {
-        // Same origin as this page, so no CORS. Backend is stateless: it only
-        // sees this one message, not the transcript above.
+        // Same origin as this page, so no CORS. history gives Jarvis memory of
+        // earlier turns this session.
         const res = await fetch("/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message }),
+          body: JSON.stringify({ message, history }),
         });
         if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
         pending.textContent = data.reply;
+        history.push({ role: "user", content: message });
+        history.push({ role: "assistant", content: data.reply });
       } catch (err) {
         pending.textContent = "Error: " + err.message;
         pending.classList.add("error");

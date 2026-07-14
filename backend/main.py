@@ -41,8 +41,17 @@ def health():
     return {"status": "healthy", "service": "jarvis-backend"}
 
 
+class Turn(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+
 class ChatRequest(BaseModel):
     message: str
+    # Prior turns for session memory. The client (browser) holds the history
+    # and replays it each call — the LLM API is stateless, so there's nothing
+    # to store server-side. Absent (e.g. the iOS app) = single-turn as before.
+    history: list[Turn] = []
 
 
 class ChatResponse(BaseModel):
@@ -58,13 +67,14 @@ def chat(req: ChatRequest) -> ChatResponse:
 
     system_prompt = build_system_prompt(profile, state, events, cards)
 
+    messages = [t.model_dump() for t in req.history]
+    messages.append({"role": "user", "content": req.message})
+
     response = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=1024,
         system=system_prompt,
-        messages=[
-            {"role": "user", "content": req.message},
-        ],
+        messages=messages,
     )
     return ChatResponse(reply=response.content[0].text)
 

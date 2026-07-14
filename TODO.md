@@ -125,7 +125,8 @@ The core value, zero write risk.
 
 Act on the plan once trusted.
 
-- [ ] Calendar **create/modify** tool for Claude (own time-boxes only)
+- [ ] Calendar **create / modify / delete** tool for Claude (own time-boxes only)
+  - Needs the read-write OAuth scope (`calendar.events`) — current token is `calendar.readonly`, so re-mint required
 - [ ] Respect explicit scheduling guardrails (work hours, focus blocks, sacred family time)
 - [ ] App writes agreed time-boxes to Google Calendar
 - [ ] Generate draft messages for reschedules (shown as copyable text, no send)
