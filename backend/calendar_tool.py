@@ -1,5 +1,6 @@
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
@@ -19,7 +20,7 @@ def get_calendar_service():
 
 def get_upcoming_events(days: int = 7) -> list[dict]:
     service = get_calendar_service()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     result = (
         service.events()
         .list(

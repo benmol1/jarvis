@@ -28,6 +28,10 @@ uv run pytest
 # Run single test file
 uv run pytest tests/test_main.py -v
 
+# Format and lint (run before committing)
+uv run ruff format .
+uv run ruff check . --fix
+
 # Docker build and run
 docker compose build
 docker compose up -d

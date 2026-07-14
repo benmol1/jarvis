@@ -18,6 +18,7 @@ dependencies = [
 dev = [
     "httpx>=0.28.1",  # required by fastapi's TestClient
     "pytest>=9.1.1",
+    "ruff>=0.15.21",
 ]
 
 [tool.uv]
@@ -28,3 +29,10 @@ package = false
 testpaths = ["tests"]
 # The app modules live in the backend root, not an installed package.
 pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+# pycodestyle, pyflakes, isort, pyupgrade, bugbear.
+select = ["E", "F", "I", "UP", "B"]
