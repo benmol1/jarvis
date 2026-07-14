@@ -1,6 +1,12 @@
 def build_system_prompt(profile: str, state: dict, events: list[dict], cards: list[dict]) -> str:
     state_lines = "\n".join(f"- {key}: {value}" for key, value in state.items()) or "(none yet)"
-    event_lines = "\n".join(f"- {e['start']}: {e['summary']}" for e in events) or "(none)"
+    event_lines = (
+        "\n".join(
+            f"- {e['start']}: {e['summary']}" + (f" [{e['calendar']}]" if e.get("calendar") else "")
+            for e in events
+        )
+        or "(none)"
+    )
     card_lines = (
         "\n".join(f"- {c['name']}" + (f" (due {c['due']})" if c.get("due") else "") for c in cards)
         or "(none)"

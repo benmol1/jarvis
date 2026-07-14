@@ -21,22 +21,39 @@ def get_calendar_service():
 def get_upcoming_events(days: int = 7) -> list[dict]:
     service = get_calendar_service()
     now = datetime.now(UTC)
-    result = (
-        service.events()
-        .list(
-            calendarId="primary",
-            timeMin=now.isoformat(),
-            timeMax=(now + timedelta(days=days)).isoformat(),
-            singleEvents=True,
-            orderBy="startTime",
+    time_min = now.isoformat()
+    time_max = (now + timedelta(days=days)).isoformat()
+
+    # Every calendar the account can see (primary + shared, e.g. the one with
+    # Emma), not just "primary".
+    # ponytail: pulls all calendars; add `if cal.get("selected")` here if
+    # subscribed/holiday calendars start adding noise.
+    calendars = service.calendarList().list().execute().get("items", [])
+
+    events = []
+    for cal in calendars:
+        result = (
+            service.events()
+            .list(
+                calendarId=cal["id"],
+                timeMin=time_min,
+                timeMax=time_max,
+                singleEvents=True,
+                orderBy="startTime",
+            )
+            .execute()
         )
-        .execute()
-    )
-    return [
-        {
-            "summary": event.get("summary", "(no title)"),
-            "start": event["start"].get("dateTime", event["start"].get("date")),
-            "end": event["end"].get("dateTime", event["end"].get("date")),
-        }
-        for event in result.get("items", [])
-    ]
+        for event in result.get("items", []):
+            events.append(
+                {
+                    "calendar": cal.get("summary", cal["id"]),
+                    "summary": event.get("summary", "(no title)"),
+                    "start": event["start"].get("dateTime", event["start"].get("date")),
+                    "end": event["end"].get("dateTime", event["end"].get("date")),
+                }
+            )
+
+    # ponytail: lexical sort on ISO strings — all-day ("2026-07-15") sorts
+    # before timed ("2026-07-15T09:00") on the same day, which is what we want.
+    events.sort(key=lambda e: e["start"])
+    return events
