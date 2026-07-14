@@ -1,6 +1,6 @@
 # Jarvis — TODO
 
-*Last updated: 2026-07-14 17:43*
+*Last updated: 2026-07-14 19:47*
 
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
@@ -9,11 +9,12 @@ before starting the next.
 
 Prove the phone → Pi → Claude text round-trip.
 
-Backend is complete; iOS app needed to complete end-to-end round-trip.
+Backend serves `/chat`; iOS app needed to complete the end-to-end round-trip.
+(Calendar data is currently missing — see the expired Google token under Phase 1.)
 
 - [x] Pick backend language/framework (default: Python + FastAPI)
 - [x] Dockerize the backend for Pi deployment
-  - [x] Create Dockerfile (multi-stage, Python alpine base for ARM compatibility)
+  - [x] Create Dockerfile (multi-stage, `python:3.11-slim` base for ARM compatibility)
   - [x] Create docker-compose.yml with port mapping (8000:8000)
   - [x] Configure volume mounts for profile and state persistence
   - [x] Add healthcheck to container
@@ -29,7 +30,7 @@ Backend is complete; iOS app needed to complete end-to-end round-trip.
 - [x] Minimal SwiftUI app: text box, send button, shows reply (see iOS App Setup block)
   - Buildable `Jarvis.xcodeproj` generated; `xcodebuild ... BUILD SUCCEEDED`
 - [ ] Round-trip works: type on phone → Pi → Claude → reply on phone (see iOS App Setup block)
-  - Blocked only on installing to the physical iPhone (signing + device deploy)
+  - Blocked on: Apple ID / signing identity, iOS platform install, then device deploy
 
 ## iOS App Setup ⏳ IN PROGRESS
 
@@ -49,17 +50,47 @@ Create and deploy the iOS app to actually use Jarvis on the phone.
   - POST to `http://raspberry-pi:8000/chat`; JSON encode/decode; error path shows message
   - Contract verified against backend (`{message}` → `{reply}`)
 - [~] Test on iPhone Simulator — **skipped** (no iOS simulator runtime installed; targeting device directly)
+- [ ] **Add an Apple ID in Xcode → Settings → Accounts** (GUI-only)
+  - `security find-identity -p codesigning` currently reports **0 valid identities**
+  - A free account is fine for device installs; the cert expires every 7 days
+- [ ] **Install the iOS platform** (Xcode → Settings → Components; several GB)
+  - The iOS 18.5 *SDK* is present (`xcodebuild -sdk iphoneos18.5` BUILD SUCCEEDED), but the
+    *platform* is not, so `-destination generic/platform=iOS` fails and nothing can be run
+- [ ] Set the signing team on the Jarvis target
 - [ ] Test on physical iPhone via USB
-  - Verify Tailnet connectivity to Pi
+  - Verify tailnet connectivity to Pi
   - Test actual on-device usage
 - [ ] App Store prep (future)
   - Bundle ID, icons, display name
 
-**Next step (resume here):** in Xcode set signing team (Apple ID) → plug in iPhone → select it as
-destination → Run. First launch: trust the dev cert on the phone (Settings → General → VPN &
-Device Management). Ensure Tailscale is installed + logged in on the phone so `raspberry-pi` resolves.
+**Next step (resume here):** the three GUI steps above (Apple ID → iOS platform → signing team),
+then plug in iPhone → select it as destination → Run. First launch: trust the dev cert on the phone
+(Settings → General → VPN & Device Management).
+
+⚠️ **Tailscale:** `raspberry-pi` currently resolves from the MacBook over the **LAN** (192.168.1.220);
+Tailscale on the Mac is *stopped*. The phone needs Tailscale installed + logged in, or the app will
+work at home and fail everywhere else.
 
 ---
+
+## Backend hardening & repo hygiene ⏳ IN PROGRESS
+
+Unplanned work, triggered by finding `/chat` returning a 500 while `/health` stayed green.
+
+- [x] Fix `/chat` 500 when an integration fails
+  - `main.py` caught only `(KeyError, ImportError)`, so a live failure (expired Google token)
+    escaped and took down the whole request
+  - Calendar/Trello now go through `fetch_context()`: logs a warning, degrades to no data
+  - Regression test added (`tests/test_main.py::test_chat_survives_a_failing_integration`)
+- [x] Move the `uv` project from repo root into `backend/`
+  - Root `pyproject.toml` was invisible to the Docker build context (`backend/`)
+  - Removed stray `uv init` artifacts (root `main.py`, empty `README.md`)
+  - Fixed: `pytest` was a *runtime* dep; `requires-python` was 3.10 vs 3.11 in the image
+- [x] Move test files into `backend/tests/` (`pythonpath`/`testpaths` set in `pyproject.toml`)
+- [x] Switch the Dockerfile to `uv sync --frozen` (multi-stage; deleted `requirements.txt`)
+  - Single source of dependency truth; no more requirements/pyproject drift
+- [ ] Verify the new image builds and `/chat` still answers
+  - Docker Desktop wasn't running locally; **not yet verified — do this before deploying to the Pi**
 
 ## Phase 1 — Read-only proposed plan ⏳ IN PROGRESS
 
@@ -67,8 +98,13 @@ The core value, zero write risk.
 
 - [x] Create the "About Ben" profile store (a file on the Pi: priorities, scheduling rules, preferences, delighters)
 - [x] Google Calendar OAuth integration (deployed & verified)
-  - Code: calendar_tool.py get_calendar_service(), requirements.txt updated, .env.example updated
+  - Code: calendar_tool.py get_calendar_service(), deps added, .env.example updated
   - Tested: Live calendar events successfully returned via /chat endpoint
+- [ ] ⚠️ **BROKEN: Google refresh token expired** (`invalid_grant: Token has been expired or revoked`)
+  - Root cause: OAuth consent screen is in **Testing** status → Google expires refresh tokens after 7 days
+  - [ ] Publish the OAuth app to **Production** in Google Cloud Console (else this recurs weekly)
+  - [ ] Re-mint `GOOGLE_REFRESH_TOKEN`, update the Pi's `.env`, redeploy
+  - Chat no longer 500s on this (see Backend hardening), but Jarvis plans **without calendar data** until fixed
 - [x] Calendar **read** tool for Claude (fetch today's / this week's events)
 - [x] Trello auth (API key + token) stored on the Pi (deployed & verified)
   - Code: trello_tool.py reads from TRELLO_API_KEY, TRELLO_TOKEN, TRELLO_BOARD_ID

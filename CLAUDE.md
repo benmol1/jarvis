@@ -10,18 +10,23 @@ Frontend: SwiftUI iOS app.
 ## Build, lint, and test commands
 
 ### Backend (Python)
+
+All commands run from `backend/`. Dependencies live in `pyproject.toml` and are locked in
+`uv.lock` — the same lockfile is used for local dev and the Docker image, so add deps with
+`uv add` (never by hand) and commit the updated lockfile, or the image build will fail.
+
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+# Install dependencies (creates .venv)
+uv sync
 
 # Run locally
-uvicorn main:app --reload
+uv run uvicorn main:app --reload
 
 # Run tests
-pytest
+uv run pytest
 
-# Run single test
-pytest test_main.py -v
+# Run single test file
+uv run pytest tests/test_main.py -v
 
 # Docker build and run
 docker compose build
