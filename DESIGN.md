@@ -87,3 +87,14 @@ Native app for personal daily use — skip the App Store.
   re-signed via Xcode. Painful for daily use.
 - **Paid Apple Developer ($99/yr) — recommended:** installs last a year, plus TestFlight.
   Worth it to never think about re-signing something you open every morning.
+
+### iOS toolchain (as built)
+
+- **Xcode 16.4**, not the latest. The App Store only offers the newest Xcode (26), which
+  requires macOS 26; the dev MacBook runs macOS 15.6.1 (Sequoia), so Xcode 16.4 — the last
+  release supporting Sequoia — was installed via the `xcodes` CLI. A future macOS upgrade is
+  the only path to newer Xcode, and isn't needed for this app.
+- **Project generated with XcodeGen** from `ios/project.yml` (committed) rather than a
+  hand-managed `.xcodeproj`. The spec is the source of truth — it pins the iOS 17 deployment
+  target, iPhone-only, bundle id, and the ATS exception that allows plain-HTTP calls to the Pi
+  over the tailnet. Regenerate with `xcodegen generate` in `ios/`.

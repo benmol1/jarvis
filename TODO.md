@@ -1,6 +1,6 @@
 # Jarvis — TODO
 
-*Last updated: 2026-07-06 20:30*
+*Last updated: 2026-07-14 17:43*
 
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
@@ -26,40 +26,38 @@ Backend is complete; iOS app needed to complete end-to-end round-trip.
 - [x] Wire the `/chat` endpoint to Claude Haiku (single call site, easy to swap later)
 - [x] Confirm the Pi is reachable over the tailnet (Tailscale hostname + port)
   - [x] Test: `curl http://raspberry-pi:8000/health` from iPhone Safari
-- [ ] Minimal SwiftUI app: text box, send button, shows reply (see iOS App Setup block)
+- [x] Minimal SwiftUI app: text box, send button, shows reply (see iOS App Setup block)
+  - Buildable `Jarvis.xcodeproj` generated; `xcodebuild ... BUILD SUCCEEDED`
 - [ ] Round-trip works: type on phone → Pi → Claude → reply on phone (see iOS App Setup block)
+  - Blocked only on installing to the physical iPhone (signing + device deploy)
 
-## iOS App Setup ⏳ BLOCKED
+## iOS App Setup ⏳ IN PROGRESS
 
 Create and deploy the iOS app to actually use Jarvis on the phone.
 
-- [ ] Set up Xcode on MacBook
-  - Install Xcode from App Store
-  - Accept license agreements
-  - Install command line tools: `xcode-select --install`
-- [ ] Create new iOS project in `ios/` directory
-  - SwiftUI-based, minimum deployment iOS 17+
-  - Name: Jarvis
-- [ ] Configure app networking
-  - Add `NSAppTransportSecurity` / `NSAllowsArbitraryLoads` to Info.plist for local Pi access
-  - Or configure specific exception for `raspberry-pi` hostname
-- [ ] Build basic UI (ContentView.swift)
-  - Text input field for user message
-  - Send button
-  - Scrollable response area
-  - Loading indicator
-- [ ] Wire UI to backend
-  - POST to `http://raspberry-pi:8000/chat` endpoint
-  - Handle JSON serialization/deserialization
-  - Error handling for network failures
-- [ ] Test on iPhone Simulator
-  - Verify text round-trip works
-  - Verify response display
+- [x] Set up Xcode on MacBook
+  - App Store Xcode 26 needs macOS 26; on macOS 15.6.1 so installed **Xcode 16.4** via `xcodes` (last release supporting Sequoia)
+  - Selected toolchain + accepted license (`xcode-select -s`, `xcodebuild -license accept`)
+- [x] Create new iOS project in `ios/` directory
+  - Generated with **XcodeGen** from `ios/project.yml` (repo-tracked spec) → `Jarvis.xcodeproj`
+  - SwiftUI, deployment target iOS 17, iPhone-only, bundle id `com.bmolyneaux.jarvis`
+- [x] Configure app networking
+  - `NSAppTransportSecurity` / `NSAllowsArbitraryLoads` set via `project.yml` → generated `Info.plist`
+- [x] Build basic UI (ContentView.swift)
+  - Text input field, Send button, response area (send button disables while in-flight)
+- [x] Wire UI to backend
+  - POST to `http://raspberry-pi:8000/chat`; JSON encode/decode; error path shows message
+  - Contract verified against backend (`{message}` → `{reply}`)
+- [~] Test on iPhone Simulator — **skipped** (no iOS simulator runtime installed; targeting device directly)
 - [ ] Test on physical iPhone via USB
   - Verify Tailnet connectivity to Pi
   - Test actual on-device usage
 - [ ] App Store prep (future)
   - Bundle ID, icons, display name
+
+**Next step (resume here):** in Xcode set signing team (Apple ID) → plug in iPhone → select it as
+destination → Run. First launch: trust the dev cert on the phone (Settings → General → VPN &
+Device Management). Ensure Tailscale is installed + logged in on the phone so `raspberry-pi` resolves.
 
 ---
 
