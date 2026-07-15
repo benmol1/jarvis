@@ -3,11 +3,26 @@ import Foundation
 // ponytail: hardcoded tailnet URL, swap for a settings field if the Pi's hostname changes often
 private let backendBaseURL = URL(string: "http://raspberry-pi:8000")!
 
+/// Mirrors the two calculating tiers a message bubble can show, so the
+/// header mark can display the same animation the conversation is
+/// currently running — standby otherwise.
+enum HeaderActivity: Equatable {
+    case standby, thinking, processing
+}
+
 @MainActor
 final class ChatViewModel: ObservableObject {
     @Published private(set) var messages: [ChatMessage] = []
     @Published var inputText = ""
     @Published private(set) var isSending = false
+
+    /// Derived from whichever message is currently calculating (there's at
+    /// most one in flight at a time), so it stays in lockstep with the
+    /// bubble's own ring without any separate state to keep in sync.
+    var headerActivity: HeaderActivity {
+        guard let active = messages.first(where: { $0.isCalculating }) else { return .standby }
+        return active.toolName != nil ? .processing : .thinking
+    }
 
     // Session memory: this client holds the conversation and replays it each
     // call, same as the web client. Lives as long as the app process does.
