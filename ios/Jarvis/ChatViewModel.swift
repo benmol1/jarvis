@@ -13,6 +13,20 @@ final class ChatViewModel: ObservableObject {
     // call, same as the web client. Lives as long as the app process does.
     private var history: [Turn] = []
 
+    init() {
+        messages.append(ChatMessage(role: .jarvis, text: Self.greeting()))
+    }
+
+    private static func greeting() -> String {
+        let now = Date()
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm 'on' dd-MM-yyyy"
+        let stamp = formatter.string(from: now)
+        let hour = Calendar.current.component(.hour, from: now)
+        let part = hour < 12 ? "this morning" : hour < 18 ? "today" : "this evening"
+        return "Hi Ben, it's \(stamp). How can I help you \(part)?"
+    }
+
     func send() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isSending else { return }

@@ -305,6 +305,16 @@
     // call. Lives as long as the page is open (reload clears it).
     const history = [];
 
+    function greeting() {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      const stamp = `${pad(now.getHours())}:${pad(now.getMinutes())} on ${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`;
+      const hour = now.getHours();
+      const part = hour < 12 ? "this morning" : hour < 18 ? "today" : "this evening";
+      return `Hi Ben, it's ${stamp}. How can I help you ${part}?`;
+    }
+    add(greeting(), "jarvis");
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const message = input.value.trim();
