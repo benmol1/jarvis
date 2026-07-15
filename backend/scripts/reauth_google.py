@@ -21,9 +21,13 @@ from dotenv import load_dotenv
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 # Must match the scope requested in calendar_tool.py, or the minted token will
-# not be accepted for the calls we actually make. calendar.events grants both
-# read and write of events (Phase 2 needs writes).
-SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
+# not be accepted for the calls we actually make. calendar.events grants
+# read/write of events; calendar.calendarlist.readonly is needed to list the
+# user's calendars (calendarList.list), which calendar.events alone does not.
+SCOPES = [
+    "https://www.googleapis.com/auth/calendar.events",
+    "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+]
 
 # Load backend/.env before reading os.environ below. No-op in Docker, which
 # injects vars via compose's env_file instead.

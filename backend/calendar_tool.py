@@ -18,10 +18,14 @@ def get_calendar_service():
         client_id=os.environ["GOOGLE_CLIENT_ID"],
         client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
         token_uri="https://oauth2.googleapis.com/token",
-        # calendar.events covers both read and write of events. Re-mint the
-        # refresh token after widening this — the old calendar.readonly token
-        # will 403 on writes.
-        scopes=["https://www.googleapis.com/auth/calendar.events"],
+        # calendar.events covers read/write of events but NOT calendarList.list
+        # (listing the user's calendars) — that needs its own scope, or the
+        # calendar-list call 403s with "insufficient scopes". Re-mint the
+        # refresh token after widening this.
+        scopes=[
+            "https://www.googleapis.com/auth/calendar.events",
+            "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+        ],
     )
     return build("calendar", "v3", credentials=creds)
 
