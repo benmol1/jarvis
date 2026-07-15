@@ -8,7 +8,7 @@ struct ContentView: View {
             background
 
             VStack(spacing: 0) {
-                HeaderView()
+                HeaderView(activity: viewModel.headerActivity)
 
                 ScrollViewReader { proxy in
                     ScrollView {
