@@ -1,9 +1,11 @@
+import json
 import logging
 import os
 
 from anthropic import Anthropic
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -53,13 +55,6 @@ class ChatRequest(BaseModel):
     # and replays it each call — the LLM API is stateless, so there's nothing
     # to store server-side. Absent (e.g. the iOS app) = single-turn as before.
     history: list[Turn] = []
-
-
-class ChatResponse(BaseModel):
-    reply: str
-    # Foreign-event changes Jarvis proposed but did not apply — the browser
-    # renders an Approve button per item that POSTs to /apply.
-    pending: list = []
 
 
 # Tools Claude may call. Jarvis freely mutates its own tagged events; moving or
@@ -259,8 +254,9 @@ def execute_tool(name: str, inp: dict, pending: list) -> str:
     return f"Error: unknown tool {name}"
 
 
-@app.post("/chat")
-def chat(req: ChatRequest) -> ChatResponse:
+def run_chat(req: ChatRequest):
+    """Runs the tool-use loop, yielding one NDJSON line per tool call so the
+    client can show interim progress, then a final line with the reply."""
     profile = load_profile()
     state = load_state()
     cards = fetch_context(get_cards, "trello")
@@ -291,6 +287,7 @@ def chat(req: ChatRequest) -> ChatResponse:
         for block in response.content:
             if block.type != "tool_use":
                 continue
+            yield json.dumps({"type": "tool", "name": block.name}) + "\n"
             try:
                 text = execute_tool(block.name, block.input, pending)
                 results.append({"type": "tool_result", "tool_use_id": block.id, "content": text})
@@ -307,7 +304,12 @@ def chat(req: ChatRequest) -> ChatResponse:
         messages.append({"role": "user", "content": results})
 
     reply = next((b.text for b in response.content if b.type == "text"), "")
-    return ChatResponse(reply=reply, pending=pending)
+    yield json.dumps({"type": "final", "reply": reply, "pending": pending}) + "\n"
+
+
+@app.post("/chat")
+def chat(req: ChatRequest) -> StreamingResponse:
+    return StreamingResponse(run_chat(req), media_type="application/x-ndjson")
 
 
 class ApplyRequest(BaseModel):

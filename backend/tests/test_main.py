@@ -1,3 +1,4 @@
+import json
 import os
 from unittest.mock import MagicMock
 
@@ -8,6 +9,13 @@ from fastapi.testclient import TestClient
 import main
 
 client = TestClient(main.app)
+
+
+def _chat(**kwargs):
+    """POST /chat and parse the NDJSON stream into its event dicts."""
+    res = client.post("/chat", **kwargs)
+    lines = [line for line in res.text.splitlines() if line]
+    return res.status_code, [json.loads(line) for line in lines]
 
 
 def _text_response(text):
@@ -21,21 +29,54 @@ def _text_response(text):
     return response
 
 
+def _tool_use_response(name, tool_input):
+    """A model response requesting one tool call."""
+    block = MagicMock()
+    block.type = "tool_use"
+    block.id = "toolu_1"
+    block.name = name
+    block.input = tool_input
+    response = MagicMock()
+    response.stop_reason = "tool_use"
+    response.content = [block]
+    return response
+
+
 def test_chat_returns_model_reply():
     main.client.messages.create = MagicMock(return_value=_text_response("hello back"))
 
-    res = client.post("/chat", json={"message": "hi"})
+    status, events = _chat(json={"message": "hi"})
 
-    assert res.status_code == 200
-    assert res.json() == {"reply": "hello back", "pending": []}
+    assert status == 200
+    assert events == [{"type": "final", "reply": "hello back", "pending": []}]
+
+
+def test_chat_streams_a_tool_event_before_the_final_reply(monkeypatch):
+    """The client needs to see which tool ran while it's running, not just
+    the end result — that's the whole point of the streaming response."""
+    monkeypatch.setattr(main, "load_state", lambda: {"plan": None})
+    monkeypatch.setattr(main, "save_state", lambda state: None)
+    main.client.messages.create = MagicMock(
+        side_effect=[
+            _tool_use_response("save_plan", {"plan": "gym then focus block"}),
+            _text_response("done"),
+        ]
+    )
+
+    status, events = _chat(json={"message": "save today's plan"})
+
+    assert status == 200
+    assert events == [
+        {"type": "tool", "name": "save_plan"},
+        {"type": "final", "reply": "done", "pending": []},
+    ]
 
 
 def test_chat_forwards_history_for_session_memory():
     create = MagicMock(return_value=_text_response("you said blue"))
     main.client.messages.create = create
 
-    res = client.post(
-        "/chat",
+    status, events = _chat(
         json={
             "message": "what did I say?",
             "history": [
@@ -45,7 +86,7 @@ def test_chat_forwards_history_for_session_memory():
         },
     )
 
-    assert res.status_code == 200
+    assert status == 200
     # Prior turns are replayed, with the new message last.
     assert create.call_args.kwargs["messages"] == [
         {"role": "user", "content": "my favourite colour is blue"},
@@ -63,10 +104,10 @@ def test_chat_survives_a_failing_integration(monkeypatch):
 
     monkeypatch.setattr(main, "get_upcoming_events", boom)
 
-    res = client.post("/chat", json={"message": "hi"})
+    status, events = _chat(json={"message": "hi"})
 
-    assert res.status_code == 200
-    assert res.json() == {"reply": "still here", "pending": []}
+    assert status == 200
+    assert events == [{"type": "final", "reply": "still here", "pending": []}]
 
 
 # --- write / approval branches -------------------------------------------------
