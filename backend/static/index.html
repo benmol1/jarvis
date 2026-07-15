@@ -23,6 +23,9 @@
     form { display: flex; gap: .5rem; }
     textarea { flex: 1; font: inherit; padding: .5rem; resize: vertical; min-height: 3rem; }
     button { font: inherit; padding: 0 1.2rem; }
+    .approvals { display: flex; flex-direction: column; gap: .4rem; }
+    .approvals .row { display: flex; gap: .5rem; align-items: center; justify-content: space-between; }
+    .mini { font-size: .8em; padding: .1rem .6rem; }
   </style>
 </head>
 <body>
@@ -47,6 +50,55 @@
       return div;
     }
 
+    // A "Copy" button so Ben can lift a drafted reschedule message straight
+    // out of Jarvis's reply.
+    function addCopyButton(div, text) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "mini";
+      btn.textContent = "Copy";
+      btn.addEventListener("click", () => navigator.clipboard.writeText(text));
+      div.append(" ", btn);
+    }
+
+    // Foreign-event changes Jarvis proposed but didn't apply. One Approve
+    // button each; approving POSTs to /apply, which does the actual write.
+    function renderApprovals(items) {
+      const box = document.createElement("div");
+      box.className = "msg jarvis approvals";
+      box.innerHTML = "<strong>Needs your approval:</strong>";
+      for (const item of items) {
+        const row = document.createElement("div");
+        row.className = "row";
+        const label = document.createElement("span");
+        label.textContent = item.label;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "mini";
+        btn.textContent = "Approve";
+        btn.addEventListener("click", async () => {
+          btn.disabled = true;
+          btn.textContent = "…";
+          try {
+            const res = await fetch("/apply", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(item),
+            });
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            btn.textContent = "Approved ✓";
+          } catch (err) {
+            btn.disabled = false;
+            btn.textContent = "Retry (" + err.message + ")";
+          }
+        });
+        row.append(label, btn);
+        box.append(row);
+      }
+      log.append(box);
+      box.scrollIntoView();
+    }
+
     // Session memory: the browser holds the conversation and replays it each
     // call. Lives as long as the page is open (reload clears it).
     const history = [];
@@ -57,7 +109,7 @@
       if (!message) return;
       add(message, "you");
       input.value = "";
-      const pending = add("…", "jarvis");
+      const bubble = add("…", "jarvis");
       try {
         // Same origin as this page, so no CORS. history gives Jarvis memory of
         // earlier turns this session.
@@ -68,12 +120,14 @@
         });
         if (!res.ok) throw new Error("HTTP " + res.status);
         const data = await res.json();
-        pending.textContent = data.reply;
+        bubble.textContent = data.reply;
+        addCopyButton(bubble, data.reply);
+        if (data.pending && data.pending.length) renderApprovals(data.pending);
         history.push({ role: "user", content: message });
         history.push({ role: "assistant", content: data.reply });
       } catch (err) {
-        pending.textContent = "Error: " + err.message;
-        pending.classList.add("error");
+        bubble.textContent = "Error: " + err.message;
+        bubble.classList.add("error");
       }
     });
 

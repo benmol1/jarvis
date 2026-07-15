@@ -9,7 +9,9 @@ def test_get_upcoming_events_merges_all_calendars():
         "primary": {
             "items": [
                 {
+                    "id": "evt1",
                     "summary": "Standup",
+                    "description": "🤖 [Jarvis]",
                     "start": {"dateTime": "2026-07-03T09:00:00Z"},
                     "end": {"dateTime": "2026-07-03T09:15:00Z"},
                 },
@@ -18,6 +20,7 @@ def test_get_upcoming_events_merges_all_calendars():
         "emma_shared": {
             "items": [
                 {
+                    "id": "evt2",
                     "start": {"date": "2026-07-04"},
                     "end": {"date": "2026-07-05"},
                 },
@@ -50,15 +53,21 @@ def test_get_upcoming_events_merges_all_calendars():
     # Both calendars present, sorted by start, tagged with calendar name.
     assert events == [
         {
+            "id": "evt1",
+            "calendar_id": "primary",
             "calendar": "Personal",
             "summary": "Standup",
             "start": "2026-07-03T09:00:00Z",
             "end": "2026-07-03T09:15:00Z",
+            "jarvis": True,
         },
         {
+            "id": "evt2",
+            "calendar_id": "emma_shared",
             "calendar": "Ben & Emma",
             "summary": "(no title)",
             "start": "2026-07-04",
             "end": "2026-07-05",
+            "jarvis": False,
         },
     ]

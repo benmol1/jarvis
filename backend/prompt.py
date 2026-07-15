@@ -2,6 +2,8 @@ import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from calendar_tool import JARVIS_TAG
+
 
 def build_system_prompt(
     profile: str, state: dict, events: list[dict], cards: list[dict], now: datetime | None = None
@@ -14,7 +16,10 @@ def build_system_prompt(
     state_lines = "\n".join(f"- {key}: {value}" for key, value in state.items()) or "(none yet)"
     event_lines = (
         "\n".join(
-            f"- {e['start']}: {e['summary']}" + (f" [{e['calendar']}]" if e.get("calendar") else "")
+            f"- {e['start']}: {e['summary']}"
+            + (f" [{e['calendar']}]" if e.get("calendar") else "")
+            + f" (event_id={e.get('id')}, calendar_id={e.get('calendar_id')})"
+            + (" — created by Jarvis" if e.get("jarvis") else "")
             for e in events
         )
         or "(none)"
@@ -39,4 +44,24 @@ Current date and time: {now_line}
 
 ## Trello cards
 {card_lines}
+
+## Calendar tools
+You can change Ben's calendar:
+- create_time_box — block out time. Every event you create is tagged
+  "{JARVIS_TAG}" so you can manage it later.
+- move_event / delete_event — reschedule or remove an event, using its event_id
+  and calendar_id from the list above. If Jarvis created it ("created by
+  Jarvis"), it applies immediately. If Ben or someone else created it, it is
+  QUEUED for Ben's explicit approval — say it's awaiting approval, don't claim
+  it's done.
+- save_plan — once Ben agrees the day's plan, record a one-line summary so
+  tomorrow's Jarvis knows what was planned and what slipped.
+
+Give start/end as ISO 8601 with timezone offset, e.g. 2026-07-15T09:00:00+01:00.
+
+Scheduling guardrails — don't schedule over these unless Ben explicitly says so:
+the work hours, focus blocks, and sacred family time stated in "About Ben".
+
+When a change affects other people, write a short draft message Ben can copy and
+send himself — never send anything yourself.
 """
