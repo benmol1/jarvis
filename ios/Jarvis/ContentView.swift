@@ -1,46 +1,66 @@
 import SwiftUI
 
-// ponytail: hardcoded tailnet URL, swap for a settings field if the Pi's hostname changes often
-private let backendURL = URL(string: "http://raspberry-pi:8000/chat")!
-
-struct ChatRequest: Encodable { let message: String }
-struct ChatResponse: Decodable { let reply: String }
-
 struct ContentView: View {
-    @State private var message = ""
-    @State private var reply = ""
-    @State private var isSending = false
+    @StateObject private var viewModel = ChatViewModel()
 
     var body: some View {
-        VStack(spacing: 16) {
-            Text(reply)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Spacer()
-            HStack {
-                TextField("Message", text: $message)
-                    .textFieldStyle(.roundedBorder)
-                Button("Send") { send() }
-                    .disabled(message.isEmpty || isSending)
+        ZStack {
+            background
+
+            VStack(spacing: 0) {
+                HeaderView()
+
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 14) {
+                            ForEach(viewModel.messages) { message in
+                                Group {
+                                    if message.role == .approvals {
+                                        ApprovalsBubble(message: message) { index in
+                                            viewModel.approve(messageID: message.id, actionIndex: index)
+                                        }
+                                    } else {
+                                        MessageBubble(message: message) {
+                                            UIPasteboard.general.string = message.text
+                                        }
+                                    }
+                                }
+                                .id(message.id)
+                            }
+                        }
+                        .padding(.vertical, 18)
+                    }
+                    .onChange(of: viewModel.messages.count) {
+                        guard let last = viewModel.messages.last else { return }
+                        withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
+                    }
+                }
+
+                ComposerView(text: $viewModel.inputText, isSending: viewModel.isSending) {
+                    viewModel.send()
+                }
             }
+            .padding(.horizontal, 12)
         }
-        .padding()
+        .preferredColorScheme(.dark)
     }
 
-    private func send() {
-        isSending = true
-        Task {
-            defer { isSending = false }
-            do {
-                var request = URLRequest(url: backendURL)
-                request.httpMethod = "POST"
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                request.httpBody = try JSONEncoder().encode(ChatRequest(message: message))
-
-                let (data, _) = try await URLSession.shared.data(for: request)
-                reply = try JSONDecoder().decode(ChatResponse.self, from: data).reply
-            } catch {
-                reply = "Error: \(error.localizedDescription)"
-            }
+    private var background: some View {
+        ZStack {
+            Color.jarvisVoid
+            RadialGradient(
+                colors: [Color(red: 0.04, green: 0.13, blue: 0.20), .clear],
+                center: UnitPoint(x: 0.5, y: -0.1), startRadius: 0, endRadius: 420
+            )
+            RadialGradient(
+                colors: [Color(red: 0.03, green: 0.10, blue: 0.14), .clear],
+                center: UnitPoint(x: 1.0, y: 1.0), startRadius: 0, endRadius: 380
+            )
         }
+        .ignoresSafeArea()
     }
+}
+
+#Preview {
+    ContentView()
 }

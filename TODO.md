@@ -1,11 +1,11 @@
 # Jarvis — TODO
 
-*Last updated: 2026-07-15 10:33*
+*Last updated: 2026-07-15 13:38*
 
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
 
-## Phase 0 — Plumbing ⚠️ IN PROGRESS
+## Phase 0 — Plumbing ✅ COMPLETE
 
 Prove the phone → Pi → Claude text round-trip.
 
@@ -29,8 +29,8 @@ end-to-end round-trip.
   - [x] Test: `curl http://raspberry-pi:8000/health` from iPhone Safari
 - [x] Minimal SwiftUI app: text box, send button, shows reply (see iOS App Setup block)
   - Buildable `Jarvis.xcodeproj` generated; `xcodebuild ... BUILD SUCCEEDED`
-- [ ] Round-trip works: type on phone → Pi → Claude → reply on phone (see iOS App Setup block)
-  - Blocked on: Apple ID / signing identity, iOS platform install, then device deploy
+- [x] Round-trip works: type on phone → Pi → Claude → reply on phone (see iOS App Setup block)
+  - Verified on physical iPhone over Tailscale (away from home network): sent a message, got Jarvis's welcome reply back
 
 ## iOS App Setup ⏳ IN PROGRESS
 
@@ -50,26 +50,29 @@ Create and deploy the iOS app to actually use Jarvis on the phone.
   - POST to `http://raspberry-pi:8000/chat`; JSON encode/decode; error path shows message
   - Contract verified against backend (`{message}` → `{reply}`)
 - [~] Test on iPhone Simulator — **skipped** (no iOS simulator runtime installed; targeting device directly)
-- [ ] **Add an Apple ID in Xcode → Settings → Accounts** (GUI-only)
-  - `security find-identity -p codesigning` currently reports **0 valid identities**
-  - A free account is fine for device installs; the cert expires every 7 days
-- [ ] **Install the iOS platform** (Xcode → Settings → Components; several GB)
-  - The iOS 18.5 *SDK* is present (`xcodebuild -sdk iphoneos18.5` BUILD SUCCEEDED), but the
-    *platform* is not, so `-destination generic/platform=iOS` fails and nothing can be run
-- [ ] Set the signing team on the Jarvis target
-- [ ] Test on physical iPhone via USB
-  - Verify tailnet connectivity to Pi
-  - Test actual on-device usage
+- [x] **Add an Apple ID in Xcode → Settings → Accounts** (GUI-only)
+  - Signed in; `security find-identity -p codesigning` now shows a valid
+    "Apple Development: ben.molyneaux1@gmail.com" identity
+- [x] **Install the iOS platform** (Xcode → Settings → Components; several GB)
+  - Confirmed already installed under the active `Xcode-16.4.0.app` toolchain
+    (`iPhoneOS.platform` present); earlier "platform missing" read was against
+    a stale `/Applications/Xcode.app` path
+- [x] Set the signing team on the Jarvis target
+  - `CODE_SIGN_STYLE: Automatic` in `project.yml` picked up the team once the
+    Apple ID was added; build shows "iOS Team Provisioning Profile:
+    com.bmolyneaux.jarvis"
+- [x] Test on physical iPhone via USB
+  - Built, installed, and launched on "BM iPhone 13 blue" via
+    `xcodebuild` + `xcrun devicectl`; had to enable Developer Mode on-device
+    (Settings → Privacy & Security) and trust the dev cert (Settings →
+    General → VPN & Device Management) before first launch would work
+  - Verified tailnet connectivity: activated Tailscale on the phone, sent a
+    message away from the home network, got a reply
 - [ ] App Store prep (future)
   - Bundle ID, icons, display name
 
-**Next step (resume here):** the three GUI steps above (Apple ID → iOS platform → signing team),
-then plug in iPhone → select it as destination → Run. First launch: trust the dev cert on the phone
-(Settings → General → VPN & Device Management).
-
-⚠️ **Tailscale:** `raspberry-pi` currently resolves from the MacBook over the **LAN** (192.168.1.220);
-Tailscale on the Mac is *stopped*. The phone needs Tailscale installed + logged in, or the app will
-work at home and fail everywhere else.
+⚠️ **Tailscale:** the phone needs Tailscale active to reach `raspberry-pi` away from the
+home LAN (192.168.1.220) — confirmed working now that it's installed and logged in.
 
 ---
 
@@ -164,9 +167,84 @@ else's** event is queued for Ben's approval in the app.
 - [x] Approval/copy view in the app (web front-end): pending foreign-event
       changes render **Approve** buttons that POST to `/apply`
 - [x] Persist the day's plan into rolling state (`save_plan` tool → `state.json`)
-- [ ] iOS: mirror the approval/copy view (deferred — iOS still blocked on
-      signing; web front-end covers Phase 2 for now)
+- [ ] Refactor toolset
+- [ ] Make sure JARVIS can automatically fill locations
+- [x] iOS: mirror the approval/copy view (done in Phase 2.5 — iOS Interface)
 - [ ] Deploy and verify on the Pi (tested locally only so far)
+
+## Phase 2.5 — iOS Interface (Jarvis HUD) ✅ COMPLETE
+
+Brought the iOS app to visual + feature parity with the desktop web console
+(`backend/static/index.html`), using the tokens already specified in
+[DESIGN.md](DESIGN.md#visual-identity--jarvis-interface-mark-i).
+`ContentView.swift` was a bare text field with a one-shot request/response —
+it had none of the streaming, history, draft-copy, or approvals behaviour
+the web client already has; this phase closed both gaps at once. Built,
+installed, and verified running on the physical iPhone.
+
+- [x] Add an Asset Catalog color set with the core tokens (Void, VoidRaised,
+      Panel, Line, LineHot, JarvisCyan, Wireframe, Hologram, StarkGold,
+      Alert, Ink) — exact hex values from the DESIGN.md token table, so web
+      and iOS can never drift (`Assets.xcassets`, `Theme.swift`)
+- [x] Bundle Orbitron + JetBrains Mono as embedded fonts (`UIAppFonts` in
+      `Info.plist` via `project.yml`); wordmark/headings in Orbitron, chrome
+      and data readouts in JetBrains Mono, body text in system sans
+  - Google's repo only ships variable fonts for these two families;
+    instantiated static Medium/Bold (Orbitron) and Regular/Medium/Bold
+    (JetBrains Mono) weights with `fonttools varLib.instancer` via `uvx`
+    so SwiftUI's `Font.custom` can address them by PostScript name directly
+- [x] Force dark color scheme app-wide (`UIUserInterfaceStyle: Dark` in
+      `project.yml` + `.preferredColorScheme(.dark)` in `ContentView`) — the
+      identity is committed-dark by design, no light theme
+- [x] Rebuild the header to match the web app-head: small spinning
+      arc-reactor mark, "JARVIS" wordmark with cyan glow, "Online" status
+      pill with a breathing LED (`HeaderView.swift`)
+- [x] Rebuild the transcript as chat bubbles matching the web styling:
+      Jarvis left-aligned in cyan-bordered panels, you right-aligned in
+      gold-bordered panels, "who" label above each (`MessageBubble.swift`)
+- [x] Wire the composer (text field + Send button) to match the web
+      styling: mono font, uppercase letter-spaced button label, cyan glow
+      on focus/press (`ComposerView.swift`)
+- [x] Switch networking from one-shot `URLSession.data(for:)` to a
+      streaming NDJSON reader (`URLSession.bytes(for:).lines`, mirroring
+      `/chat`'s one-`{"type":"tool"}`-line-per-call then a
+      `{"type":"final"}` line) so a bubble shows "Calling `<tool>`…" while
+      a tool call is in flight (`ChatViewModel.swift`)
+- [x] Add the calculating-ring component (rotating cyan arc, matches the
+      web `.calc`/`RING` markup) for the in-flight bubble
+      (`CalculatingRing.swift`)
+- [x] Keep session history client-side (array of `{role, content}`) and
+      replay it on each request, matching the web client's `history` array
+- [x] Add a Copy button on replies flagged `is_draft`, using
+      `UIPasteboard.general.string` (mirrors the web `addCopyButton`)
+- [x] Add an approvals view: render `pending` items from the response with
+      individual Approve buttons that POST to `/apply` (mirrors
+      `renderApprovals`; `ApprovalsBubble.swift`)
+- [x] Respect Reduce Motion — `CalculatingRing`/`HeaderView`/`CalculatingLabel`
+      check `@Environment(\.accessibilityReduceMotion)` and skip their
+      animations when set
+- [x] Swap the placeholder app icon for the arc-reactor mark asset described
+      in DESIGN.md's Visual Assets section — generated a 1024×1024 PNG with
+      Pillow (concentric rings, crosshair ticks, glowing core) matching the
+      design proposal's icon spec
+
+Post-launch polish, from testing on the physical device:
+
+- [x] Render `**bold**` markdown in Jarvis's replies instead of showing
+      literal asterisks (`AttributedString(markdown:)` in `MessageBubble`);
+      your own messages stay plain text
+- [x] Give Jarvis's replies a dedicated body font (JetBrains Mono, sized down
+      one step to 13pt after review) while your own messages and the
+      composer's typed text keep the plain system font
+- [x] Fix the composer/bubble layout so the "Calculating…" row can't wrap to
+      a second line (`fixedSize` + `lineLimit(1)`, trimmed side margins)
+- [x] Fix the animated "…" glitching into a single ellipsis glyph — JetBrains
+      Mono ligature-substitutes three periods; swapped the dots for plain
+      circles instead of text characters
+- [x] Add a distinct **Processing** ring (dual counter-rotating arcs, gold
+      ring, pulsing core — the design proposal's second calculating tier) for
+      when a tool call is actually in flight, separate from the plain
+      **Thinking** ring shown before any tool call starts
 
 ## Phase 3 — Voice + reminder
 

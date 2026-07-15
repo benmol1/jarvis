@@ -18,6 +18,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.bmolyneaux.jarvis
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 749Y7LB6WB
         TARGETED_DEVICE_FAMILY: "1"  # iPhone only
     info:
       path: Jarvis/Info.plist
@@ -26,6 +27,14 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        UIUserInterfaceStyle: Dark
         # Pi backend is plain HTTP over the private tailnet, so allow it.
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
+        # Jarvis Interface (Mark I) HUD faces — see DESIGN.md visual identity.
+        UIAppFonts:
+          - Orbitron-Medium.ttf
+          - Orbitron-Bold.ttf
+          - JetBrainsMono-Regular.ttf
+          - JetBrainsMono-Medium.ttf
+          - JetBrainsMono-Bold.ttf
