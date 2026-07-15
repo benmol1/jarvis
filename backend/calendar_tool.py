@@ -88,9 +88,10 @@ def get_event(calendar_id: str, event_id: str) -> dict:
 def create_event(summary: str, start: str, end: str, calendar_id: str = "primary") -> dict:
     """Create a Jarvis-owned time-box. start/end are ISO 8601 with offset."""
     service = get_calendar_service()
+    created_at = datetime.now().strftime("%d/%m/%y %H:%M")
     body = {
         "summary": summary,
-        "description": JARVIS_TAG,
+        "description": f"{JARVIS_TAG} {created_at}",
         "start": {"dateTime": start},
         "end": {"dateTime": end},
     }
