@@ -1,6 +1,6 @@
 # Jarvis — TODO
 
-*Last updated: 2026-07-14 21:56*
+*Last updated: 2026-07-15 09:45*
 
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
@@ -121,17 +121,43 @@ The core value, zero write risk.
 - [ ] Display the proposed plan clearly in the app
   - TODO: Update iOS ContentView with dedicated plan display
 
-## Phase 2 — Calendar writes + message drafts
+## Phase 2 — Calendar writes + message drafts ⏳ IN PROGRESS
 
-Act on the plan once trusted.
+Act on the plan once trusted. Hybrid trust model: Jarvis freely
+creates/moves/deletes its **own** tagged events; moving/deleting **anyone
+else's** event is queued for Ben's approval in the app.
 
-- [ ] Calendar **create / modify / delete** tool for Claude (own time-boxes only)
-  - Needs the read-write OAuth scope (`calendar.events`) — current token is `calendar.readonly`, so re-mint required
-- [ ] Respect explicit scheduling guardrails (work hours, focus blocks, sacred family time)
-- [ ] App writes agreed time-boxes to Google Calendar
-- [ ] Generate draft messages for reschedules (shown as copyable text, no send)
-- [ ] Approval/copy view in the app for drafts and calendar changes
-- [ ] Persist the day's plan into rolling state (so tomorrow knows what slipped)
+- [x] Calendar **create / modify / delete** tool for Claude (`create_time_box`,
+      `move_event`, `delete_event`) via a tool-use loop in `main.py`
+  - Jarvis-created events stamped with a visible `🤖 [Jarvis]` tag in the
+    description (`calendar_tool.JARVIS_TAG`); ownership checked server-side, not
+    trusted from the model
+  - `GOOGLE_REFRESH_TOKEN` re-minted with the `calendar.events` scope
+    (`backend/reauth_google.py`) — verified locally end-to-end
+- [x] Jarvis tag enhancement: add a created at timestamp DD/MM/YY hh:mm (24hr clock, local timezone)
+- [x] Cross-calendar targeting: create events in the right calendar (Personal vs Joint)
+      and move/copy events between them
+  - Create: `create_time_box` takes an optional `calendar_id`; Jarvis picks the
+    target from the ask ("add to Joint") against the live calendar list, else primary
+  - Move: `move_to_calendar` tool → `calendar_tool.move_event_to_calendar`
+    (Google `events.move`); Jarvis-owned applies inline, foreign is queued for approval
+  - Copy: `copy_event` tool → `calendar_tool.copy_event` (insert duplicate, leave
+    original); non-destructive so applies inline, copy is stamped Jarvis-owned
+  - Calendar list surfaced in the system prompt so Jarvis knows each calendar's id
+  - Tested locally; still needs Pi deploy + verify
+- [x] Respect explicit scheduling guardrails (work hours, focus blocks, sacred
+      family time) — instructed in `prompt.py`, sourced from "About Ben"
+- [x] App writes agreed time-boxes to Google Calendar (create applies inline;
+      foreign move/delete applies via `/apply` after approval) — verified
+      locally
+- [x] Generate draft messages for reschedules — prompt instructs Jarvis to
+      write copyable drafts; web reply has a **Copy** button (no send)
+- [x] Approval/copy view in the app (web front-end): pending foreign-event
+      changes render **Approve** buttons that POST to `/apply`
+- [x] Persist the day's plan into rolling state (`save_plan` tool → `state.json`)
+- [ ] iOS: mirror the approval/copy view (deferred — iOS still blocked on
+      signing; web front-end covers Phase 2 for now)
+- [ ] Deploy and verify on the Pi (tested locally only so far)
 
 ## Phase 3 — Voice + reminder
 
