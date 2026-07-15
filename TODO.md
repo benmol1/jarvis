@@ -191,3 +191,8 @@ Not building: an in-app calendar/Trello view. Jarvis's writes already show up in
 - [ ] Gmail drafts instead of copy/paste messages
 - [ ] Swap Claude Haiku for another model (possibly open-source)
 - [ ] Decide on Apple Developer account ($99/yr recommended) for long-lived installs
+
+## Bug fixes
+
+- [ ] Bug where JARVIS asked to rename an existing event (which he didn't create) but he called the move_event tool so nothing happened.
+- [ ] The approval message showed a timestamp in a format that's a bit difficult to read - change to YYYY-MM-DD | hh:mm

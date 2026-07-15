@@ -173,6 +173,19 @@
     button:active { transform: translateY(1px); }
     button:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; filter: none; }
 
+    /* Smaller inline buttons: Copy on a reply, Approve in the approvals box */
+    button.mini { font-size: .62rem; letter-spacing: .12em; padding: .35rem .9rem; min-height: 0; margin-left: 10px; }
+
+    .msg.approvals { display: flex; flex-direction: column; gap: 10px; }
+    .msg.approvals strong {
+      font-family: var(--font-data); font-size: .58rem; letter-spacing: .2em;
+      text-transform: uppercase; color: var(--cyan);
+    }
+    .msg.approvals .row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 14px; padding: 6px 2px;
+    }
+
     :focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
 
     @media (prefers-reduced-motion: reduce) {
