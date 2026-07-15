@@ -79,6 +79,57 @@ Ship the smallest thing that delivers the magic first.
 - Gmail drafts instead of copy/paste messages
 - Swap Claude Haiku for another model (possibly open-source)
 
+## Visual identity — "Jarvis Interface" (Mark I)
+
+A HUD-inspired visual language drawn from Tony Stark's interface in *Iron Man* (2008):
+a black void ground, pale bright-cyan wireframe, radial "calculating" motion, and the
+suit's gold as a single warm accent. Committed **dark only** — the arc reactor glows in
+darkness, so there is no light theme by design. One token set drives both platforms so
+the web console and the iOS app read as the same machine.
+
+### Core tokens (single source of truth)
+
+| Token | Hex | Role | CSS var | SwiftUI (Asset Catalog) |
+|---|---|---|---|---|
+| Void | `#03070D` | Ground | `--void` | `Color("Void")` |
+| Void-2 | `#061019` | Raised ground / fields | `--void-2` | `Color("VoidRaised")` |
+| Panel | `#08151F` | Surface | `--panel` | `Color("Panel")` |
+| Line | `#123246` | Hairline / grid | `--line` | `Color("Line")` |
+| Line-hot | `#1D4E6B` | Active hairline | `--line-hot` | `Color("LineHot")` |
+| Jarvis Cyan | `#5FE3FF` | Primary — Jarvis voice, focus, glow | `--cyan` | `Color("JarvisCyan")` |
+| Wireframe | `#2F8FC4` | Strokes / structural lines | `--cyan-deep` | `Color("Wireframe")` |
+| Hologram | `#E8FBFF` | Peak text | `--holo` | `Color("Hologram")` |
+| Stark Gold | `#FFB547` | Secondary accent — user voice, alerts | `--gold` | `Color("StarkGold")` |
+| Alert | `#FF5D4A` | Critical / errors | `--alert` | `Color("Alert")` |
+| Ink | `#CFEEFC` | Default reading text | `--ink` | `Color("Ink")` |
+
+Neutrals are blue-biased, never plain grey, so the whole surface reads as lit from within.
+
+### Typography
+
+- **Display / wordmark / headings:** Orbitron (geometric, futuristic).
+- **Chrome / data / readouts:** JetBrains Mono (the "codey" voice; a free stand-in for the
+  film's *Arame Mono*), uppercase and letter-spaced for labels.
+- **Reading text:** system sans.
+- Robust monospace fallbacks are declared so the look never silently breaks offline. iOS
+  bundles the faces; web self-hosts or links them.
+
+### Signature motion — the calculating ring
+
+One reusable component in three tiers, replacing any plain "…" spinner:
+**Thinking** (inline in a reply), **Processing** (full-screen, running tools),
+**Listening** (voice capture / iOS push-to-talk). Concentric cyan rings rotate and pulse
+while Jarvis works. All motion respects `prefers-reduced-motion`.
+
+### Convention
+
+Jarvis speaks in **cyan** (left-aligned); the user answers in **gold** (right-aligned).
+
+### Status
+
+- **Web console** (`backend/static/index.html`) — implemented (Mark I).
+- **iOS app** (`ios/Jarvis/`) — to follow, reading the identical tokens from an Asset Catalog.
+
 ## Deployment
 
 Native app for personal daily use — skip the App Store.
