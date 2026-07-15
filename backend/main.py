@@ -244,7 +244,11 @@ def execute_tool(name: str, inp: dict, pending: list) -> str:
         events = calendar_tool.get_events_in_range(inp["start"], inp["end"])
         if not events:
             return "No events found in that range."
-        return "\n".join(f"{e['start']} to {e['end']}: {e['summary']} ({e['calendar']})" for e in events)
+        return "\n".join(
+            f"{e['start']} to {e['end']}: {e['summary']} ({e['calendar']}) "
+            f"(event_id={e['id']}, calendar_id={e['calendar_id']})"
+            for e in events
+        )
 
     if name == "save_plan":
         state = load_state()
