@@ -2,12 +2,12 @@
 
 Run this when the calendar starts failing with:
     RefreshError: invalid_grant: Token has been expired or revoked.
+or after widening the scope (Phase 2 needs read-write: calendar.events).
 
-Usage (from backend/):
-    GOOGLE_CLIENT_ID=... GOOGLE_CLIENT_SECRET=... uv run python reauth_google.py
+Usage (from backend/): uv run python reauth_google.py
 
-It opens a browser, asks you to grant read-only calendar access, and prints a
-refresh token to paste into the Pi's .env. It writes nothing itself.
+It opens a browser, asks you to grant calendar access, and prints a refresh
+token to paste into the Pi's .env. It writes nothing itself.
 
 NOTE: if the OAuth consent screen is still in "Testing" status, Google expires
 the refresh token after 7 days and you will be back here. Publish the app to
@@ -16,17 +16,22 @@ Production in the Google Cloud Console to make the token durable.
 
 import os
 import sys
+from dotenv import load_dotenv
 
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 # Must match the scope requested in calendar_tool.py, or the minted token will
-# not be accepted for the calls we actually make.
-SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
+# not be accepted for the calls we actually make. calendar.events grants both
+# read and write of events (Phase 2 needs writes).
+SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
 
+# Load backend/.env before reading os.environ below. No-op in Docker, which
+# injects vars via compose's env_file instead.
+load_dotenv()
 
 def main() -> int:
-    client_id = os.environ.get("GOOGLE_CLIENT_ID")
-    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET")
+    client_id = os.environ["GOOGLE_CLIENT_ID"]
+    client_secret = os.environ["GOOGLE_CLIENT_SECRET"]
 
     if not client_id or not client_secret:
         print(

@@ -134,6 +134,7 @@ else's** event is queued for Ben's approval in the app.
     trusted from the model
   - `GOOGLE_REFRESH_TOKEN` re-minted with the `calendar.events` scope
     (`backend/reauth_google.py`) — verified locally end-to-end
+- [ ] Jarvis tag enhancement: add a created at timestamp DD/MM/YY hh:mm (24hr clock, local timezone)
 - [x] Respect explicit scheduling guardrails (work hours, focus blocks, sacred
       family time) — instructed in `prompt.py`, sourced from "About Ben"
 - [x] App writes agreed time-boxes to Google Calendar (create applies inline;
