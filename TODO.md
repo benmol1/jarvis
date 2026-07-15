@@ -1,6 +1,6 @@
 # Jarvis — TODO
 
-*Last updated: 2026-07-15 09:05*
+*Last updated: 2026-07-15 09:45*
 
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
@@ -135,6 +135,16 @@ else's** event is queued for Ben's approval in the app.
   - `GOOGLE_REFRESH_TOKEN` re-minted with the `calendar.events` scope
     (`backend/reauth_google.py`) — verified locally end-to-end
 - [x] Jarvis tag enhancement: add a created at timestamp DD/MM/YY hh:mm (24hr clock, local timezone)
+- [x] Cross-calendar targeting: create events in the right calendar (Personal vs Joint)
+      and move/copy events between them
+  - Create: `create_time_box` takes an optional `calendar_id`; Jarvis picks the
+    target from the ask ("add to Joint") against the live calendar list, else primary
+  - Move: `move_to_calendar` tool → `calendar_tool.move_event_to_calendar`
+    (Google `events.move`); Jarvis-owned applies inline, foreign is queued for approval
+  - Copy: `copy_event` tool → `calendar_tool.copy_event` (insert duplicate, leave
+    original); non-destructive so applies inline, copy is stamped Jarvis-owned
+  - Calendar list surfaced in the system prompt so Jarvis knows each calendar's id
+  - Tested locally; still needs Pi deploy + verify
 - [x] Respect explicit scheduling guardrails (work hours, focus blocks, sacred
       family time) — instructed in `prompt.py`, sourced from "About Ben"
 - [x] App writes agreed time-boxes to Google Calendar (create applies inline;

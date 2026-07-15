@@ -77,7 +77,7 @@ def test_create_time_box_applies_immediately(monkeypatch):
     monkeypatch.setattr(
         main.calendar_tool,
         "create_event",
-        lambda summary, start, end: created.update(summary=summary),
+        lambda summary, start, end, cal="primary": created.update(summary=summary, cal=cal),
     )
     pending = []
 
@@ -127,3 +127,76 @@ def test_move_foreign_event_is_queued_not_applied(monkeypatch):
     assert len(pending) == 1
     assert pending[0]["action"] == "move_event"
     assert pending[0]["event_id"] == "x"
+
+
+def test_create_time_box_targets_named_calendar(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        main.calendar_tool, "create_event", lambda summary, start, end, cal: calls.append(cal)
+    )
+
+    main.execute_tool(
+        "create_time_box",
+        {"summary": "Date night", "start": "S", "end": "E", "calendar_id": "joint@group"},
+        [],
+    )
+
+    assert calls == ["joint@group"]  # not silently dropped to primary
+
+
+def test_move_to_calendar_jarvis_event_applies_immediately(monkeypatch):
+    monkeypatch.setattr(
+        main.calendar_tool, "get_event", lambda c, i: {"summary": "Focus", "jarvis": True}
+    )
+    moved = []
+    monkeypatch.setattr(main.calendar_tool, "move_event_to_calendar", lambda *a: moved.append(a))
+    pending = []
+
+    main.execute_tool(
+        "move_to_calendar",
+        {"event_id": "x", "calendar_id": "primary", "destination_calendar_id": "joint@group"},
+        pending,
+    )
+
+    assert moved == [("primary", "x", "joint@group")]
+    assert pending == []
+
+
+def test_move_to_calendar_foreign_event_is_queued(monkeypatch):
+    monkeypatch.setattr(
+        main.calendar_tool, "get_event", lambda c, i: {"summary": "Dentist", "jarvis": False}
+    )
+    moved = []
+    monkeypatch.setattr(main.calendar_tool, "move_event_to_calendar", lambda *a: moved.append(a))
+    pending = []
+
+    main.execute_tool(
+        "move_to_calendar",
+        {"event_id": "x", "calendar_id": "primary", "destination_calendar_id": "joint@group"},
+        pending,
+    )
+
+    assert moved == []  # foreign event must NOT be moved without approval
+    assert pending[0]["action"] == "move_to_calendar"
+    assert pending[0]["destination_calendar_id"] == "joint@group"
+
+
+def test_copy_event_applies_immediately_even_for_foreign(monkeypatch):
+    """Copy is non-destructive, so it never needs approval — it leaves the
+    original alone. get_event is not even consulted."""
+    copied = []
+    monkeypatch.setattr(
+        main.calendar_tool,
+        "copy_event",
+        lambda c, i, dest: copied.append((c, i, dest)) or {"summary": "Dentist"},
+    )
+    pending = []
+
+    main.execute_tool(
+        "copy_event",
+        {"event_id": "x", "calendar_id": "primary", "destination_calendar_id": "joint@group"},
+        pending,
+    )
+
+    assert copied == [("primary", "x", "joint@group")]
+    assert pending == []

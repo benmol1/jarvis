@@ -90,6 +90,7 @@ def test_create_event_stamps_tag_with_created_at_timestamp():
             create_event("Focus block", "2026-07-15T09:00:00+01:00", "2026-07-15T10:00:00+01:00")
 
     body = mock_service.events.return_value.insert.call_args.kwargs["body"]
-    assert body["description"].startswith(JARVIS_TAG + " ")
-    timestamp = body["description"].removeprefix(JARVIS_TAG + " ")
+    prefix = f"{JARVIS_TAG} - created at: "
+    assert body["description"].startswith(prefix)
+    timestamp = body["description"].removeprefix(prefix)
     assert re.fullmatch(r"\d{2}/\d{2}/\d{2} \d{2}:\d{2}", timestamp)

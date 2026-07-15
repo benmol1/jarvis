@@ -78,6 +78,17 @@ def get_upcoming_events(days: int = 7) -> list[dict]:
     return events
 
 
+def list_calendars() -> list[dict]:
+    """All calendars the account can see, as {id, name}. Lets Jarvis target a
+    calendar by name (e.g. "Joint") even when it has no upcoming events to
+    reveal its id."""
+    service = get_calendar_service()
+    return [
+        {"id": c["id"], "name": c.get("summary", c["id"])}
+        for c in service.calendarList().list().execute().get("items", [])
+    ]
+
+
 def get_event(calendar_id: str, event_id: str) -> dict:
     """Fetch one event, exposing whether Jarvis created it."""
     service = get_calendar_service()
@@ -112,3 +123,30 @@ def update_event(calendar_id: str, event_id: str, start: str, end: str) -> dict:
 def delete_event(calendar_id: str, event_id: str) -> None:
     service = get_calendar_service()
     service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
+
+
+def move_event_to_calendar(calendar_id: str, event_id: str, destination_calendar_id: str) -> dict:
+    """Move an event to a different calendar, keeping its time. Google's
+    events.move — distinct from update_event, which only patches start/end."""
+    service = get_calendar_service()
+    return (
+        service.events()
+        .move(calendarId=calendar_id, eventId=event_id, destination=destination_calendar_id)
+        .execute()
+    )
+
+
+def copy_event(calendar_id: str, event_id: str, destination_calendar_id: str) -> dict:
+    """Duplicate an event into another calendar, leaving the original untouched.
+    The copy is stamped Jarvis-owned so Jarvis can manage it later."""
+    service = get_calendar_service()
+    src = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
+    created_at = datetime.now().strftime("%d/%m/%y %H:%M")
+    body = {
+        "summary": src.get("summary", "(no title)"),
+        "description": f"{JARVIS_TAG} - created at: {created_at}",
+        # Copy start/end verbatim so all-day vs timed and timezone are preserved.
+        "start": src["start"],
+        "end": src["end"],
+    }
+    return service.events().insert(calendarId=destination_calendar_id, body=body).execute()

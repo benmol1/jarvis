@@ -74,6 +74,13 @@ TOOLS = [
                 "summary": {"type": "string"},
                 "start": {"type": "string", "description": "ISO 8601 with offset"},
                 "end": {"type": "string", "description": "ISO 8601 with offset"},
+                "calendar_id": {
+                    "type": "string",
+                    "description": (
+                        "Target calendar id from the calendar list. Omit to use "
+                        "Ben's primary/Personal calendar."
+                    ),
+                },
             },
             "required": ["summary", "start", "end"],
         },
@@ -111,6 +118,38 @@ TOOLS = [
         },
     },
     {
+        "name": "move_to_calendar",
+        "description": (
+            "Move an event to a different calendar (keeps its time). Applies "
+            "immediately if Jarvis created it; otherwise queued for Ben's approval."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "event_id": {"type": "string"},
+                "calendar_id": {"type": "string", "description": "The event's current calendar"},
+                "destination_calendar_id": {"type": "string", "description": "Calendar to move to"},
+            },
+            "required": ["event_id", "calendar_id", "destination_calendar_id"],
+        },
+    },
+    {
+        "name": "copy_event",
+        "description": (
+            "Copy an event into another calendar, leaving the original in place. "
+            "Non-destructive, so applies immediately; the copy is Jarvis-owned."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "event_id": {"type": "string"},
+                "calendar_id": {"type": "string", "description": "The event's current calendar"},
+                "destination_calendar_id": {"type": "string", "description": "Calendar to copy to"},
+            },
+            "required": ["event_id", "calendar_id", "destination_calendar_id"],
+        },
+    },
+    {
         "name": "save_plan",
         "description": "Record the agreed day plan so tomorrow's Jarvis knows what was planned.",
         "input_schema": {
@@ -126,8 +165,38 @@ def execute_tool(name: str, inp: dict, pending: list) -> str:
     """Run one tool call. Foreign-event edits are appended to `pending` and NOT
     applied — that's the approval gate; everything else applies immediately."""
     if name == "create_time_box":
-        calendar_tool.create_event(inp["summary"], inp["start"], inp["end"])
+        calendar_tool.create_event(
+            inp["summary"], inp["start"], inp["end"], inp.get("calendar_id", "primary")
+        )
         return f"Created '{inp['summary']}' ({inp['start']} to {inp['end']})."
+
+    if name == "copy_event":
+        # Non-destructive — leaves the original — so it applies immediately
+        # regardless of who owns the source. The copy is Jarvis-owned.
+        copied = calendar_tool.copy_event(
+            inp["calendar_id"], inp["event_id"], inp["destination_calendar_id"]
+        )
+        return f"Copied '{copied.get('summary', '(no title)')}' into the target calendar."
+
+    if name == "move_to_calendar":
+        cal = inp["calendar_id"]
+        dest = inp["destination_calendar_id"]
+        # Never trust the model about ownership — check the real event.
+        event = calendar_tool.get_event(cal, inp["event_id"])
+        if event["jarvis"]:
+            calendar_tool.move_event_to_calendar(cal, inp["event_id"], dest)
+            return f"Moved '{event['summary']}' to the target calendar."
+        label = f"Move '{event['summary']}' to another calendar"
+        pending.append(
+            {
+                "action": "move_to_calendar",
+                "calendar_id": cal,
+                "event_id": inp["event_id"],
+                "destination_calendar_id": dest,
+                "label": label,
+            }
+        )
+        return f"Queued for Ben's approval: {label}. Not yet applied."
 
     if name in ("move_event", "delete_event"):
         cal = inp.get("calendar_id", "primary")
@@ -171,8 +240,9 @@ def chat(req: ChatRequest) -> ChatResponse:
     state = load_state()
     cards = fetch_context(get_cards, "trello")
     events = fetch_context(get_upcoming_events, "calendar")
+    calendars = fetch_context(calendar_tool.list_calendars, "calendar list")
 
-    system_prompt = build_system_prompt(profile, state, events, cards)
+    system_prompt = build_system_prompt(profile, state, events, cards, calendars=calendars)
 
     messages = [t.model_dump() for t in req.history]
     messages.append({"role": "user", "content": req.message})
@@ -216,11 +286,12 @@ def chat(req: ChatRequest) -> ChatResponse:
 
 
 class ApplyRequest(BaseModel):
-    action: str  # "move_event" or "delete_event"
+    action: str  # "move_event", "delete_event", or "move_to_calendar"
     calendar_id: str = "primary"
     event_id: str
     start: str | None = None
     end: str | None = None
+    destination_calendar_id: str | None = None
 
 
 @app.post("/apply")
@@ -230,6 +301,10 @@ def apply(req: ApplyRequest) -> dict:
         calendar_tool.update_event(req.calendar_id, req.event_id, req.start, req.end)
     elif req.action == "delete_event":
         calendar_tool.delete_event(req.calendar_id, req.event_id)
+    elif req.action == "move_to_calendar":
+        calendar_tool.move_event_to_calendar(
+            req.calendar_id, req.event_id, req.destination_calendar_id
+        )
     else:
         raise HTTPException(status_code=400, detail=f"unknown action {req.action}")
     return {"status": "applied"}
