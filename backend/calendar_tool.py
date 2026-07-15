@@ -95,7 +95,7 @@ def create_event(summary: str, start: str, end: str, calendar_id: str = "primary
     created_at = datetime.now().strftime("%d/%m/%y %H:%M")
     body = {
         "summary": summary,
-        "description": f"{JARVIS_TAG} {created_at}",
+        "description": f"{JARVIS_TAG} - created at: {created_at}",
         "start": {"dateTime": start},
         "end": {"dateTime": end},
     }
