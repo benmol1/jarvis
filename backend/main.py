@@ -168,10 +168,19 @@ TOOLS = [
             "required": ["plan"],
         },
     },
+    {
+        "name": "flag_draft_message",
+        "description": (
+            "Call this whenever your reply includes a message drafted for Ben to "
+            "copy and send himself to another person (per the guardrail on changes "
+            "affecting other people). Lets the client show a Copy button."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
+    },
 ]
 
 
-def execute_tool(name: str, inp: dict, pending: list) -> str:
+def execute_tool(name: str, inp: dict, pending: list, flags: dict) -> str:
     """Run one tool call. Foreign-event edits are appended to `pending` and NOT
     applied — that's the approval gate; everything else applies immediately."""
     if name == "create_time_box":
@@ -251,6 +260,10 @@ def execute_tool(name: str, inp: dict, pending: list) -> str:
         save_state(state)
         return "Saved the plan to rolling state."
 
+    if name == "flag_draft_message":
+        flags["draft"] = True
+        return "Noted — the client will show a Copy button."
+
     return f"Error: unknown tool {name}"
 
 
@@ -269,6 +282,7 @@ def run_chat(req: ChatRequest):
     messages.append({"role": "user", "content": req.message})
 
     pending: list = []
+    flags = {"draft": False}
     response = None
     # Bounded tool-use loop. ponytail: 8 rounds is plenty for a planning turn;
     # bump it if Claude legitimately chains more calls than that.
@@ -289,7 +303,7 @@ def run_chat(req: ChatRequest):
                 continue
             yield json.dumps({"type": "tool", "name": block.name}) + "\n"
             try:
-                text = execute_tool(block.name, block.input, pending)
+                text = execute_tool(block.name, block.input, pending, flags)
                 results.append({"type": "tool_result", "tool_use_id": block.id, "content": text})
             except Exception as e:
                 logger.warning("tool %s failed", block.name, exc_info=True)
@@ -304,7 +318,12 @@ def run_chat(req: ChatRequest):
         messages.append({"role": "user", "content": results})
 
     reply = next((b.text for b in response.content if b.type == "text"), "")
-    yield json.dumps({"type": "final", "reply": reply, "pending": pending}) + "\n"
+    yield (
+        json.dumps(
+            {"type": "final", "reply": reply, "pending": pending, "is_draft": flags["draft"]}
+        )
+        + "\n"
+    )
 
 
 @app.post("/chat")

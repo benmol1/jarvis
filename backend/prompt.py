@@ -75,6 +75,9 @@ You can change Ben's calendar:
   a specific week) before answering.
 - save_plan — once Ben agrees the day's plan, record a one-line summary so
   tomorrow's Jarvis knows what was planned and what slipped.
+- flag_draft_message — call this whenever your reply includes a drafted
+  message for Ben to copy and send to someone else (see the guardrail below).
+  It shows Ben a Copy button; don't call it for anything else.
 
 Give start/end in the format YYYY-MM-DD | hh:mm - e.g. 2026-07-15 | 09:00
 

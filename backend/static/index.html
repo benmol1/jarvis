@@ -303,19 +303,44 @@
         // Same origin as this page, so no CORS. history gives Jarvis memory of
         // earlier turns this session. The response streams one NDJSON line per
         // tool call, then a final line with the reply — lets the bubble show
-        // "Using <tool>…" while Jarvis is still working.
+        // "Calling <tool>…" while Jarvis is still working.
         const res = await fetch("/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message, history }),
         });
         if (!res.ok) throw new Error("HTTP " + res.status);
-        const data = await res.json();
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let data = null;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop(); // last element may be a partial line
+          for (const line of lines) {
+            if (!line) continue;
+            const event = JSON.parse(line);
+            if (event.type === "tool") {
+              pending.innerHTML =
+                '<div class="who">Jarvis</div><div class="calc">' + RING +
+                '<span>Calling &lt;' + event.name + '&gt;<span class="dots"></span></span></div>';
+            } else if (event.type === "final") {
+              data = event;
+            }
+          }
+        }
+
         pending.innerHTML = '<div class="who">Jarvis</div>';
         const body = document.createElement("div");
         body.textContent = data.reply;
         pending.append(body);
+        if (data.is_draft) addCopyButton(body, data.reply);
         pending.scrollIntoView();
+        if (data.pending && data.pending.length) renderApprovals(data.pending);
         history.push({ role: "user", content: message });
         history.push({ role: "assistant", content: data.reply });
       } catch (err) {

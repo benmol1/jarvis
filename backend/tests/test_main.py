@@ -48,7 +48,7 @@ def test_chat_returns_model_reply():
     status, events = _chat(json={"message": "hi"})
 
     assert status == 200
-    assert events == [{"type": "final", "reply": "hello back", "pending": []}]
+    assert events == [{"type": "final", "reply": "hello back", "pending": [], "is_draft": False}]
 
 
 def test_chat_streams_a_tool_event_before_the_final_reply(monkeypatch):
@@ -68,8 +68,24 @@ def test_chat_streams_a_tool_event_before_the_final_reply(monkeypatch):
     assert status == 200
     assert events == [
         {"type": "tool", "name": "save_plan"},
-        {"type": "final", "reply": "done", "pending": []},
+        {"type": "final", "reply": "done", "pending": [], "is_draft": False},
     ]
+
+
+def test_chat_flags_draft_messages_for_the_client(monkeypatch):
+    """flag_draft_message is how Jarvis tells the client 'this reply has a
+    message for Ben to copy and send' — only then should Copy show up."""
+    main.client.messages.create = MagicMock(
+        side_effect=[
+            _tool_use_response("flag_draft_message", {}),
+            _text_response("Hi Alex, can we push our 3pm to 4pm?"),
+        ]
+    )
+
+    status, events = _chat(json={"message": "draft a message to Alex about rescheduling"})
+
+    assert status == 200
+    assert events[-1]["is_draft"] is True
 
 
 def test_chat_forwards_history_for_session_memory():
@@ -107,7 +123,7 @@ def test_chat_survives_a_failing_integration(monkeypatch):
     status, events = _chat(json={"message": "hi"})
 
     assert status == 200
-    assert events == [{"type": "final", "reply": "still here", "pending": []}]
+    assert events == [{"type": "final", "reply": "still here", "pending": [], "is_draft": False}]
 
 
 # --- write / approval branches -------------------------------------------------
@@ -126,6 +142,7 @@ def test_create_time_box_applies_immediately(monkeypatch):
         "create_time_box",
         {"summary": "Deep work", "start": "S", "end": "E"},
         pending,
+        {"draft": False},
     )
 
     assert created["summary"] == "Deep work"
@@ -144,6 +161,7 @@ def test_move_jarvis_event_applies_immediately(monkeypatch):
         "move_event",
         {"event_id": "x", "calendar_id": "primary", "start": "S", "end": "E"},
         pending,
+        {"draft": False},
     )
 
     assert len(moved) == 1
@@ -162,6 +180,7 @@ def test_move_foreign_event_is_queued_not_applied(monkeypatch):
         "move_event",
         {"event_id": "x", "calendar_id": "primary", "start": "S", "end": "E"},
         pending,
+        {"draft": False},
     )
 
     assert moved == []  # foreign event must NOT be touched without approval
@@ -180,6 +199,7 @@ def test_create_time_box_targets_named_calendar(monkeypatch):
         "create_time_box",
         {"summary": "Date night", "start": "S", "end": "E", "calendar_id": "joint@group"},
         [],
+        {"draft": False},
     )
 
     assert calls == ["joint@group"]  # not silently dropped to primary
@@ -197,6 +217,7 @@ def test_move_to_calendar_jarvis_event_applies_immediately(monkeypatch):
         "move_to_calendar",
         {"event_id": "x", "calendar_id": "primary", "destination_calendar_id": "joint@group"},
         pending,
+        {"draft": False},
     )
 
     assert moved == [("primary", "x", "joint@group")]
@@ -215,6 +236,7 @@ def test_move_to_calendar_foreign_event_is_queued(monkeypatch):
         "move_to_calendar",
         {"event_id": "x", "calendar_id": "primary", "destination_calendar_id": "joint@group"},
         pending,
+        {"draft": False},
     )
 
     assert moved == []  # foreign event must NOT be moved without approval
@@ -237,6 +259,7 @@ def test_copy_event_applies_immediately_even_for_foreign(monkeypatch):
         "copy_event",
         {"event_id": "x", "calendar_id": "primary", "destination_calendar_id": "joint@group"},
         pending,
+        {"draft": False},
     )
 
     assert copied == [("primary", "x", "joint@group")]
