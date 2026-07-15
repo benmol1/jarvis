@@ -1,6 +1,6 @@
 # Jarvis — TODO
 
-*Last updated: 2026-07-15 09:45*
+*Last updated: 2026-07-15 10:33*
 
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
@@ -109,6 +109,12 @@ The core value, zero write risk.
   - [x] Re-mint `GOOGLE_REFRESH_TOKEN` (`backend/reauth_google.py`), update the Pi's `.env`, redeploy
   - Verified end-to-end: `/chat` correctly named a real upcoming event from the live calendar
 - [x] Calendar **read** tool for Claude (fetch today's / this week's events)
+- [x] Widen calendar visibility beyond the fixed rolling window
+  - Default lookahead injected into the prompt bumped 7 → 14 days
+  - Added a `list_events` tool so Jarvis can look up any arbitrary date range
+    on demand (e.g. "what's on in August") instead of only the injected window
+  - Fixed `list_events` omitting `event_id`/`calendar_id`, which had silently
+    blocked Jarvis from acting on events it had just looked up
 - [x] Trello auth (API key + token) stored on the Pi (deployed & verified)
   - Code: trello_tool.py reads from TRELLO_API_KEY, TRELLO_TOKEN, TRELLO_BOARD_ID
   - Tested: Trello cards successfully returned via /chat endpoint
@@ -152,6 +158,9 @@ else's** event is queued for Ben's approval in the app.
       locally
 - [x] Generate draft messages for reschedules — prompt instructs Jarvis to
       write copyable drafts; web reply has a **Copy** button (no send)
+  - Refined: Copy button was showing on every reply, not just drafts. Added a
+    `flag_draft_message` tool Jarvis calls only when a reply contains a
+    message meant to be copied and sent — button now gated on that flag
 - [x] Approval/copy view in the app (web front-end): pending foreign-event
       changes render **Approve** buttons that POST to `/apply`
 - [x] Persist the day's plan into rolling state (`save_plan` tool → `state.json`)
@@ -178,6 +187,11 @@ Same `/chat` backend, a second client. No new framework — plain HTML + fetch, 
 - [x] Mount it in FastAPI with `StaticFiles` (mounted last so `/chat` + `/health` match first)
 - [x] Reuse existing CORS/auth as needed for browser access over the tailnet
   - No CORS needed: the page is served by the backend, so `fetch('/chat')` is same-origin. No auth exists to reuse.
+- [x] Stream tool-call progress to the chat UI
+  - `/chat` now streams NDJSON (one `{"type":"tool",...}` line per tool call,
+    then a final line with the reply) instead of one blocking JSON body
+  - Chat bubble shows "Using `<tool>`…" while a tool call is in flight, then
+    swaps in the final reply
 - [~] Confirm plan display works in a wide viewport (no mobile constraints to design around)
   - Page is 800px-max centred, transcript style; structured plan display still pending Phase 1
 - [ ] (Later) Persist chat history in the page via `localStorage` if useful
@@ -192,7 +206,14 @@ Not building: an in-app calendar/Trello view. Jarvis's writes already show up in
 - [ ] Swap Claude Haiku for another model (possibly open-source)
 - [ ] Decide on Apple Developer account ($99/yr recommended) for long-lived installs
 
-## Bug fixes
+## Bug fixes ⏳ IN PROGRESS
 
 - [ ] Bug where JARVIS asked to rename an existing event (which he didn't create) but he called the move_event tool so nothing happened.
 - [ ] The approval message showed a timestamp in a format that's a bit difficult to read - change to YYYY-MM-DD | hh:mm
+- [x] Desktop redesign PR regressed the chat UI: reverted the NDJSON stream
+      reader back to `res.json()` (broke tool-progress display with a JSON
+      parse error) and silently dropped the `addCopyButton`/`renderApprovals`
+      calls. Restored the streaming reader and re-wired both.
+- [x] Approve/Copy buttons rendered oversized after the redesign (inherited
+      the full Send-button styling, no `.mini` class defined). Added
+      `button.mini` sizing plus proper row padding for the approvals box.
