@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+<title>JARVIS — Interface Design System</title>
+<meta name="description" content="A Jarvis HUD-inspired visual identity for the Jarvis assistant, spanning web and iOS.">
+
+<style>
+  :root {
+    /* ---- Palette: committed dark HUD ---- */
+    --void:      #03070d;   /* ground */
+    --void-2:    #061019;   /* raised ground */
+    --panel:     #08151f;   /* panel fill */
+    --panel-2:   #0b1e2b;   /* panel fill, lifted */
+    --line:      #123246;   /* hairline / grid */
+    --line-hot:  #1d4e6b;   /* active hairline */
+
+    --cyan:      #5fe3ff;   /* Jarvis blue — primary */
+    --cyan-deep: #2f8fc4;   /* wireframe stroke */
+    --cyan-dim:  #3a6f8a;   /* muted cyan text */
+    --holo:      #e8fbff;   /* hologram white */
+    --gold:      #ffb547;   /* Stark gold — secondary accent */
+    --gold-dim:  #b9823a;
+    --alert:     #ff5d4a;   /* critical */
+
+    --ink:       #cfeefc;   /* default reading text (cool white) */
+    --ink-mute:  #6f92a6;   /* secondary text */
+    --ink-faint: #3f5c6d;   /* tertiary / captions */
+
+    --font-hud:  ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", "DejaVu Sans Mono", monospace;
+    --font-body: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+    --glow-cyan: 0 0 6px rgba(95,227,255,.55), 0 0 22px rgba(95,227,255,.22);
+    --glow-gold: 0 0 6px rgba(255,181,71,.5), 0 0 20px rgba(255,181,71,.2);
+
+    --maxw: 1080px;
+    --r: 4px;
+  }
+
+  /* Committed dark: hold the ground regardless of viewer theme toggle. */
+  :root[data-theme="light"], :root[data-theme="dark"] { color-scheme: dark; }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 700px at 50% -8%, #0a2233 0%, transparent 60%),
+      radial-gradient(900px 900px at 100% 100%, #071a24 0%, transparent 55%),
+      var(--void);
+    color: var(--ink);
+    font-family: var(--font-body);
+    line-height: 1.6;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Ambient HUD grid + scanline, behind everything, non-interactive */
+  body::before {
+    content: "";
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(47,143,196,.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(47,143,196,.045) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(120% 90% at 50% 20%, #000 40%, transparent 100%);
+  }
+  body::after {
+    content: "";
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(3,7,13,0) 0 2px, rgba(3,7,13,.35) 3px);
+    opacity: .35;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: var(--maxw); margin: 0 auto; padding: 0 20px 90px; }
+
+  /* ---------- HUD chrome primitives ---------- */
+  .kicker {
+    font-family: var(--font-hud);
+    font-size: .68rem; letter-spacing: .34em; text-transform: uppercase;
+    color: var(--cyan-dim);
+  }
+  .kicker b { color: var(--cyan); font-weight: 600; text-shadow: var(--glow-cyan); }
+
+  h1, h2, h3 { font-family: var(--font-hud); font-weight: 600; text-wrap: balance; margin: 0; }
+
+  .panel {
+    position: relative;
+    background: linear-gradient(180deg, var(--panel) 0%, var(--void-2) 100%);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    padding: 26px 28px;
+  }
+  /* Corner reticle brackets */
+  .panel > .bk { position: absolute; width: 14px; height: 14px; border: 1.5px solid var(--cyan-deep); opacity: .8; }
+  .panel > .bk.tl { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+  .panel > .bk.tr { top: -1px; right: -1px; border-left: 0; border-bottom: 0; }
+  .panel > .bk.bl { bottom: -1px; left: -1px; border-right: 0; border-top: 0; }
+  .panel > .bk.br { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+
+  .panel-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+  .panel-head h2 { font-size: 1.02rem; letter-spacing: .12em; text-transform: uppercase; color: var(--holo); }
+  .panel-head .idx { font-family: var(--font-hud); font-size: .7rem; color: var(--gold-dim); letter-spacing: .2em; }
+  .lead { color: var(--ink-mute); max-width: 62ch; margin: 4px 0 0; font-size: .96rem; }
+
+  section { margin-top: 30px; }
+
+  /* ---------- HERO ---------- */
+  header { position: relative; text-align: center; padding: 60px 0 30px; }
+  .reactor-stage { position: relative; width: 300px; height: 300px; margin: 0 auto 8px; }
+  @media (max-width: 520px) { .reactor-stage { width: 240px; height: 240px; } }
+  .reactor-stage svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .spin-slow  { transform-origin: 150px 150px; animation: spin 22s linear infinite; }
+  .spin-med   { transform-origin: 150px 150px; animation: spin 12s linear infinite reverse; }
+  .spin-fast  { transform-origin: 150px 150px; animation: spin 7s  linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .reactor-core {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 66px; height: 66px; border-radius: 50%;
+    background: radial-gradient(circle, #ffffff 0%, var(--holo) 26%, var(--cyan) 55%, rgba(95,227,255,0) 78%);
+    box-shadow: 0 0 30px 6px rgba(95,227,255,.55), 0 0 70px 20px rgba(95,227,255,.25);
+    animation: pulse 3.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: .92; transform: translate(-50%,-50%) scale(1); } 50% { opacity: 1; transform: translate(-50%,-50%) scale(1.06); } }
+
+  .wordmark {
+    font-family: var(--font-hud); font-weight: 700;
+    font-size: clamp(2.4rem, 8vw, 4.4rem); letter-spacing: .42em;
+    margin-left: .42em; /* optical: balance the tracking */
+    color: var(--holo); text-shadow: var(--glow-cyan);
+    line-height: 1;
+  }
+  .tagline { font-family: var(--font-hud); color: var(--cyan-dim); letter-spacing: .3em; text-transform: uppercase; font-size: .72rem; margin-top: 16px; }
+  .tagline .sep { color: var(--gold); padding: 0 .5em; }
+
+  .boot { animation: boot 1.1s ease-out both; }
+  @keyframes boot { from { opacity: 0; filter: blur(6px); transform: translateY(8px); } to { opacity: 1; filter: none; transform: none; } }
+
+  /* ---------- Reference strip ---------- */
+  .ref-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 16px; }
+  @media (max-width: 720px) { .ref-grid { grid-template-columns: repeat(2, 1fr); } }
+  .ref { border: 1px solid var(--line); border-radius: var(--r); padding: 14px; background: var(--void-2); }
+  .ref .t { font-family: var(--font-hud); font-size: .66rem; letter-spacing: .18em; text-transform: uppercase; color: var(--cyan); }
+  .ref p { margin: 6px 0 0; font-size: .82rem; color: var(--ink-mute); line-height: 1.5; }
+
+  /* ---------- Palette ---------- */
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 18px; }
+  .sw { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--void-2); }
+  .sw .chip { height: 74px; position: relative; }
+  .sw .meta { padding: 10px 12px; font-family: var(--font-hud); }
+  .sw .name { font-size: .74rem; color: var(--holo); letter-spacing: .06em; }
+  .sw .hex { font-size: .72rem; color: var(--ink-mute); margin-top: 3px; text-transform: uppercase; }
+  .sw .role { font-size: .62rem; color: var(--ink-faint); margin-top: 6px; letter-spacing: .1em; text-transform: uppercase; }
+
+  /* ---------- Type specimen ---------- */
+  .type-rows { display: grid; gap: 2px; margin-top: 16px; }
+  .trow { display: grid; grid-template-columns: 130px 1fr; gap: 20px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  @media (max-width: 620px) { .trow { grid-template-columns: 1fr; gap: 8px; } }
+  .trow .label { font-family: var(--font-hud); font-size: .64rem; letter-spacing: .16em; text-transform: uppercase; color: var(--cyan-dim); }
+  .sp-display { font-family: var(--font-hud); font-weight: 700; font-size: 2rem; letter-spacing: .3em; color: var(--holo); text-shadow: var(--glow-cyan); }
+  .sp-h2 { font-family: var(--font-hud); font-size: 1.05rem; letter-spacing: .14em; text-transform: uppercase; color: var(--cyan); }
+  .sp-data { font-family: var(--font-hud); font-size: .95rem; color: var(--gold); letter-spacing: .05em; font-variant-numeric: tabular-nums; }
+  .sp-body { font-family: var(--font-body); font-size: 1rem; color: var(--ink); max-width: 60ch; }
+
+  /* ---------- Calculating states ---------- */
+  .calc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 18px; }
+  @media (max-width: 720px) { .calc-grid { grid-template-columns: 1fr; } }
+  .calc { border: 1px solid var(--line); border-radius: var(--r); padding: 22px; text-align: center; background: var(--void-2); }
+  .calc .stage { width: 96px; height: 96px; margin: 0 auto 14px; position: relative; }
+  .calc svg { width: 100%; height: 100%; overflow: visible; }
+  .calc .cap { font-family: var(--font-hud); font-size: .64rem; letter-spacing: .16em; text-transform: uppercase; color: var(--cyan); }
+  .calc .sub { font-size: .76rem; color: var(--ink-mute); margin-top: 4px; }
+  .arc-spin { transform-origin: 48px 48px; animation: spin 2.4s linear infinite; }
+  .arc-spin.rev { animation: spin 3.6s linear infinite reverse; }
+  .dot-core { animation: pulse2 1.6s ease-in-out infinite; transform-origin: center; }
+  @keyframes pulse2 { 0%,100% { opacity: .4; } 50% { opacity: 1; } }
+
+  /* ---------- Mockups ---------- */
+  .mocks { display: grid; grid-template-columns: 1.35fr .9fr; gap: 22px; margin-top: 18px; align-items: start; }
+  @media (max-width: 860px) { .mocks { grid-template-columns: 1fr; } }
+
+  /* Browser mock */
+  .browser { border: 1px solid var(--line-hot); border-radius: 8px; overflow: hidden; background: var(--void); box-shadow: 0 0 40px rgba(95,227,255,.08); }
+  .browser .bar { display: flex; align-items: center; gap: 8px; padding: 9px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .browser .bar .d { width: 9px; height: 9px; border-radius: 50%; border: 1px solid var(--cyan-deep); }
+  .browser .bar .d.g { background: var(--gold); border-color: var(--gold); }
+  .browser .url { flex: 1; margin-left: 8px; font-family: var(--font-hud); font-size: .66rem; color: var(--cyan-dim); background: var(--void-2); border: 1px solid var(--line); border-radius: 3px; padding: 4px 8px; letter-spacing: .04em; }
+  .chatarea { padding: 18px; min-height: 320px; display: flex; flex-direction: column; gap: 12px; }
+  .app-head { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+  .app-head .mini { width: 22px; height: 22px; flex: none; }
+  .app-head .nm { font-family: var(--font-hud); letter-spacing: .28em; color: var(--holo); font-size: .8rem; text-shadow: var(--glow-cyan); }
+  .app-head .st { margin-left: auto; font-family: var(--font-hud); font-size: .58rem; letter-spacing: .18em; text-transform: uppercase; color: var(--cyan); display: flex; align-items: center; gap: 6px; }
+  .app-head .st::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); box-shadow: var(--glow-cyan); animation: pulse2 2s ease-in-out infinite; }
+
+  .bub { max-width: 78%; padding: 10px 13px; border-radius: 10px; font-size: .9rem; line-height: 1.5; position: relative; }
+  .bub.j { align-self: flex-start; background: linear-gradient(180deg, rgba(18,50,70,.6), rgba(8,21,31,.6)); border: 1px solid var(--line-hot); border-left: 2px solid var(--cyan); color: var(--ink); box-shadow: 0 0 18px rgba(95,227,255,.06); }
+  .bub.u { align-self: flex-end; background: linear-gradient(180deg, rgba(60,40,10,.5), rgba(28,20,6,.5)); border: 1px solid var(--gold-dim); border-right: 2px solid var(--gold); color: #ffe6bd; }
+  .bub .who { font-family: var(--font-hud); font-size: .56rem; letter-spacing: .2em; text-transform: uppercase; opacity: .8; margin-bottom: 4px; }
+  .bub.j .who { color: var(--cyan); }
+  .bub.u .who { color: var(--gold); }
+  .bub.calc-bub { display: flex; align-items: center; gap: 10px; color: var(--cyan-dim); }
+  .bub.calc-bub .mini-ring { width: 20px; height: 20px; flex: none; }
+
+  .composer { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-top: 1px solid var(--line); background: var(--panel); }
+  .composer .field { flex: 1; font-family: var(--font-hud); font-size: .74rem; color: var(--ink-mute); background: var(--void); border: 1px solid var(--line-hot); border-radius: 4px; padding: 9px 12px; letter-spacing: .03em; }
+  .composer .field .cur { color: var(--cyan); animation: blink 1.1s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .composer .send { font-family: var(--font-hud); font-size: .64rem; letter-spacing: .16em; text-transform: uppercase; color: var(--void); background: var(--cyan); border: 0; border-radius: 4px; padding: 9px 14px; box-shadow: var(--glow-cyan); }
+
+  /* iPhone mock */
+  .phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .phone { width: 260px; height: 540px; border-radius: 42px; background: linear-gradient(180deg, #0a1a24, #040b11); border: 1.5px solid var(--line-hot); padding: 12px; box-shadow: 0 0 50px rgba(95,227,255,.1), inset 0 0 0 6px #010509; position: relative; }
+  .phone .screen { width: 100%; height: 100%; background: var(--void); border-radius: 30px; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+  .phone .island { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 84px; height: 22px; background: #000; border-radius: 12px; z-index: 3; }
+  .phone .statusbar { display: flex; justify-content: space-between; padding: 14px 20px 6px; font-family: var(--font-hud); font-size: .58rem; color: var(--cyan-dim); letter-spacing: .05em; }
+  .phone .p-head { text-align: center; padding: 8px 0 12px; border-bottom: 1px solid var(--line); }
+  .phone .p-head .nm { font-family: var(--font-hud); letter-spacing: .3em; color: var(--holo); font-size: .78rem; text-shadow: var(--glow-cyan); }
+  .phone .p-head .st { font-family: var(--font-hud); font-size: .52rem; letter-spacing: .16em; text-transform: uppercase; color: var(--cyan); margin-top: 3px; }
+  .phone .p-chat { flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 9px; overflow: hidden; }
+  .phone .bub { max-width: 82%; font-size: .74rem; padding: 8px 10px; }
+  .phone .p-foot { padding: 12px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: center; gap: 14px; }
+  .ptt { width: 54px; height: 54px; border-radius: 50%; background: radial-gradient(circle, var(--cyan) 0%, var(--cyan-deep) 60%, transparent 72%); box-shadow: 0 0 22px rgba(95,227,255,.5); display: flex; align-items: center; justify-content: center; position: relative; }
+  .ptt::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 1px solid var(--cyan); opacity: .5; animation: ring-out 2.4s ease-out infinite; }
+  @keyframes ring-out { 0% { transform: scale(.8); opacity: .6; } 100% { transform: scale(1.5); opacity: 0; } }
+  .ptt svg { width: 22px; height: 22px; }
+  .phone .mini-input { flex: 1; height: 34px; border-radius: 18px; border: 1px solid var(--line-hot); background: var(--void-2); }
+  .platform-tag { font-family: var(--font-hud); font-size: .6rem; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-faint); }
+
+  /* ---------- Assets ---------- */
+  .assets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 18px; }
+  @media (max-width: 720px) { .assets { grid-template-columns: repeat(2, 1fr); } }
+  .asset { border: 1px solid var(--line); border-radius: var(--r); padding: 20px; text-align: center; background: var(--void-2); }
+  .asset .art { width: 84px; height: 84px; margin: 0 auto 12px; display: flex; align-items: center; justify-content: center; }
+  .asset .art svg { width: 100%; height: 100%; overflow: visible; }
+  .asset .nm { font-family: var(--font-hud); font-size: .64rem; letter-spacing: .12em; text-transform: uppercase; color: var(--cyan); }
+  .asset .ds { font-size: .74rem; color: var(--ink-mute); margin-top: 4px; }
+
+  /* ---------- Token table ---------- */
+  .table-scroll { overflow-x: auto; margin-top: 16px; border: 1px solid var(--line); border-radius: var(--r); }
+  table { border-collapse: collapse; width: 100%; font-size: .82rem; min-width: 560px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); }
+  thead th { font-family: var(--font-hud); font-size: .62rem; letter-spacing: .14em; text-transform: uppercase; color: var(--cyan-dim); background: var(--panel); }
+  tbody td { color: var(--ink-mute); font-family: var(--font-hud); font-variant-numeric: tabular-nums; }
+  tbody td .swref { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 8px; vertical-align: middle; border: 1px solid rgba(255,255,255,.15); }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody td:first-child { color: var(--holo); }
+
+  footer { margin-top: 42px; padding-top: 22px; border-top: 1px solid var(--line); text-align: center; color: var(--ink-faint); font-family: var(--font-hud); font-size: .64rem; letter-spacing: .18em; text-transform: uppercase; }
+
+  a { color: var(--cyan); }
+  :focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; }
+    .composer .field .cur { opacity: 1; }
+  }
+</style>
+
+<div class="wrap">
+
+  <!-- ============ HERO ============ -->
+  <header class="boot">
+    <div class="reactor-stage" role="img" aria-label="Animated arc-reactor HUD with concentric rotating rings">
+      <svg viewBox="0 0 300 300" aria-hidden="true">
+        <!-- static faint outer field -->
+        <circle cx="150" cy="150" r="142" fill="none" stroke="#123246" stroke-width="1"/>
+        <circle cx="150" cy="150" r="118" fill="none" stroke="#0e2838" stroke-width="1"/>
+
+        <!-- slow outer ring: tick marks -->
+        <g class="spin-slow" stroke="#2f8fc4" stroke-width="1.4">
+          <g id="ticks"></g>
+          <circle cx="150" cy="150" r="130" fill="none" stroke="#1d4e6b" stroke-width="1"/>
+        </g>
+
+        <!-- medium ring: dashed arc segments -->
+        <g class="spin-med" fill="none">
+          <circle cx="150" cy="150" r="104" stroke="#5fe3ff" stroke-width="2" stroke-dasharray="60 34 12 34" opacity=".85"/>
+          <circle cx="150" cy="150" r="92"  stroke="#2f8fc4" stroke-width="1" stroke-dasharray="4 10"/>
+        </g>
+
+        <!-- fast inner ring: gold accent segment + cyan -->
+        <g class="spin-fast" fill="none">
+          <circle cx="150" cy="150" r="76" stroke="#123246" stroke-width="8"/>
+          <circle cx="150" cy="150" r="76" stroke="#5fe3ff" stroke-width="2.5" stroke-dasharray="150 320" stroke-linecap="round"/>
+          <circle cx="150" cy="150" r="76" stroke="#ffb547" stroke-width="2.5" stroke-dasharray="40 438" stroke-dashoffset="-235" stroke-linecap="round"/>
+        </g>
+
+        <!-- crosshair guides -->
+        <g stroke="#1d4e6b" stroke-width="1">
+          <line x1="150" y1="8" x2="150" y2="40"/>
+          <line x1="150" y1="260" x2="150" y2="292"/>
+          <line x1="8" y1="150" x2="40" y2="150"/>
+          <line x1="260" y1="150" x2="292" y2="150"/>
+        </g>
+      </svg>
+      <div class="reactor-core"></div>
+    </div>
+
+    <div class="wordmark">JARVIS</div>
+    <div class="tagline">Interface Design System <span class="sep">//</span> Mark I</div>
+  </header>
+
+  <!-- ============ BRIEF / REFERENCE ============ -->
+  <section>
+    <div class="panel">
+      <span class="bk tl"></span><span class="bk tr"></span><span class="bk bl"></span><span class="bk br"></span>
+      <div class="panel-head">
+        <span class="idx">DIR / 01</span>
+        <h2>Design Direction</h2>
+      </div>
+      <p class="lead">A visual language drawn directly from Tony Stark's HUD in <em>Iron&nbsp;Man</em> (2008): a black void, pale bright-cyan wireframe, and radial diagnostics that rotate while the system thinks. One token system drives both the desktop web console and the iOS app, so they read as the same machine.</p>
+      <div class="ref-grid">
+        <div class="ref"><div class="t">Ground</div><p>Near-black, blue-biased void. Everything glows against darkness — the interface never sits on white.</p></div>
+        <div class="ref"><div class="t">Cyan wireframe</div><p>Pale arc-reactor blue for structure, strokes and live text. Thin lines, generous glow.</p></div>
+        <div class="ref"><div class="t">Radial motion</div><p>Concentric rings that spin and pulse while Jarvis is calculating — the signature "thinking" gesture.</p></div>
+        <div class="ref"><div class="t">Stark gold</div><p>The Mark&nbsp;III callback. A single warm accent for your own voice and alerts — used sparingly.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PALETTE ============ -->
+  <section>
+    <div class="panel">
+      <span class="bk tl"></span><span class="bk tr"></span><span class="bk bl"></span><span class="bk br"></span>
+      <div class="panel-head">
+        <span class="idx">SYS / 02</span>
+        <h2>Core Palette</h2>
+      </div>
+      <p class="lead">Six tokens carry the identity. The neutrals are blue-biased, never neutral grey — chosen so the whole surface feels lit from within.</p>
+      <div class="swatches">
+        <div class="sw"><div class="chip" style="background:#03070d"></div><div class="meta"><div class="name">Void</div><div class="hex">#03070D</div><div class="role">Ground</div></div></div>
+        <div class="sw"><div class="chip" style="background:#08151f"></div><div class="meta"><div class="name">Panel</div><div class="hex">#08151F</div><div class="role">Surface</div></div></div>
+        <div class="sw"><div class="chip" style="background:#5fe3ff;box-shadow:inset 0 0 30px rgba(95,227,255,.6)"></div><div class="meta"><div class="name">Jarvis Cyan</div><div class="hex">#5FE3FF</div><div class="role">Primary</div></div></div>
+        <div class="sw"><div class="chip" style="background:#2f8fc4"></div><div class="meta"><div class="name">Wireframe</div><div class="hex">#2F8FC4</div><div class="role">Strokes / lines</div></div></div>
+        <div class="sw"><div class="chip" style="background:#e8fbff"></div><div class="meta"><div class="name">Hologram</div><div class="hex">#E8FBFF</div><div class="role">Peak text</div></div></div>
+        <div class="sw"><div class="chip" style="background:#ffb547;box-shadow:inset 0 0 30px rgba(255,181,71,.5)"></div><div class="meta"><div class="name">Stark Gold</div><div class="hex">#FFB547</div><div class="role">Accent / alerts</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TYPOGRAPHY ============ -->
+  <section>
+    <div class="panel">
+      <span class="bk tl"></span><span class="bk tr"></span><span class="bk bl"></span><span class="bk br"></span>
+      <div class="panel-head">
+        <span class="idx">SYS / 03</span>
+        <h2>Typography</h2>
+      </div>
+      <p class="lead">The films used <em>Arame&nbsp;Mono</em> — a technical, monospaced display face. The system leans monospace for all HUD chrome (labels, readouts, the wordmark), with a clean geometric sans for anything you actually read at length.</p>
+      <div class="type-rows">
+        <div class="trow"><div class="label">Display / Wordmark</div><div class="sp-display">JARVIS</div></div>
+        <div class="trow"><div class="label">Heading — HUD</div><div class="sp-h2">Morning Briefing // 07:42</div></div>
+        <div class="trow"><div class="label">Data / Readout</div><div class="sp-data">CAL 4 EVENTS · TRELLO 12 CARDS · FOCUS 2h 15m</div></div>
+        <div class="trow"><div class="label">Body — reading</div><div class="sp-body">Good morning, Ben. You have a clear block until 10:00 — I'd protect it for the deck. Two cards slipped from yesterday; shall I pull them forward?</div></div>
+      </div>
+      <p class="lead" style="margin-top:18px;font-size:.82rem;color:var(--ink-faint)">Licensed handoff faces → Headers: <b style="color:var(--cyan-dim)">Orbitron</b> / <b style="color:var(--cyan-dim)">Share&nbsp;Tech&nbsp;Mono</b> · Data: <b style="color:var(--cyan-dim)">JetBrains&nbsp;Mono</b>. iOS ships these bundled; web self-hosts them as @font-face.</p>
+    </div>
+  </section>
+
+  <!-- ============ CALCULATING STATES ============ -->
+  <section>
+    <div class="panel">
+      <span class="bk tl"></span><span class="bk tr"></span><span class="bk bl"></span><span class="bk br"></span>
+      <div class="panel-head">
+        <span class="idx">MOTION / 04</span>
+        <h2>The Calculating Ring</h2>
+      </div>
+      <p class="lead">One reusable component, three tiers. It replaces the plain "…" spinner everywhere Jarvis is working — inline in a message, as a full processing state, or listening for voice.</p>
+      <div class="calc-grid">
+        <div class="calc">
+          <div class="stage">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <circle cx="48" cy="48" r="30" fill="none" stroke="#123246" stroke-width="2"/>
+              <g class="arc-spin"><circle cx="48" cy="48" r="30" fill="none" stroke="#5fe3ff" stroke-width="2.5" stroke-dasharray="55 130" stroke-linecap="round"/></g>
+              <circle cx="48" cy="48" r="5" fill="#5fe3ff" class="dot-core"/>
+            </svg>
+          </div>
+          <div class="cap">Thinking</div>
+          <div class="sub">Inline, in a reply bubble</div>
+        </div>
+        <div class="calc">
+          <div class="stage">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <g class="arc-spin"><circle cx="48" cy="48" r="34" fill="none" stroke="#5fe3ff" stroke-width="2" stroke-dasharray="40 30 8 30" stroke-linecap="round"/></g>
+              <g class="arc-spin rev"><circle cx="48" cy="48" r="24" fill="none" stroke="#2f8fc4" stroke-width="2" stroke-dasharray="20 22"/></g>
+              <circle cx="48" cy="48" r="12" fill="none" stroke="#ffb547" stroke-width="1.5" opacity=".7"/>
+              <circle cx="48" cy="48" r="4" fill="#e8fbff" class="dot-core"/>
+            </svg>
+          </div>
+          <div class="cap">Processing</div>
+          <div class="sub">Full-screen, running tools</div>
+        </div>
+        <div class="calc">
+          <div class="stage">
+            <svg viewBox="0 0 96 96" aria-hidden="true">
+              <circle cx="48" cy="48" r="20" fill="none" stroke="#5fe3ff" stroke-width="2" class="dot-core"/>
+              <circle cx="48" cy="48" r="30" fill="none" stroke="#1d4e6b" stroke-width="1.5"/>
+              <g class="arc-spin"><circle cx="48" cy="48" r="30" fill="none" stroke="#ffb547" stroke-width="2.5" stroke-dasharray="10 178" stroke-linecap="round"/></g>
+              <circle cx="48" cy="48" r="7" fill="#5fe3ff" class="dot-core"/>
+            </svg>
+          </div>
+          <div class="cap">Listening</div>
+          <div class="sub">Voice capture, iOS push-to-talk</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MOCKUPS ============ -->
+  <section>
+    <div class="panel">
+      <span class="bk tl"></span><span class="bk tr"></span><span class="bk bl"></span><span class="bk br"></span>
+      <div class="panel-head">
+        <span class="idx">APPLIED / 05</span>
+        <h2>One Machine, Two Screens</h2>
+      </div>
+      <p class="lead">The same tokens, chrome and motion applied to the desktop web console and the iOS app. Jarvis speaks in cyan; you answer in gold.</p>
+
+      <div class="mocks">
+        <!-- Browser -->
+        <div>
+          <div class="browser">
+            <div class="bar">
+              <span class="d"></span><span class="d"></span><span class="d g"></span>
+              <span class="url">jarvis.tailnet · /chat</span>
+            </div>
+            <div class="chatarea">
+              <div class="app-head">
+                <svg class="mini" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" fill="none" stroke="#2f8fc4" stroke-width="2"/><circle cx="20" cy="20" r="10" fill="none" stroke="#5fe3ff" stroke-width="2" stroke-dasharray="30 20"/><circle cx="20" cy="20" r="3.5" fill="#5fe3ff"/></svg>
+                <span class="nm">JARVIS</span>
+                <span class="st">Online</span>
+              </div>
+              <div class="bub j"><div class="who">Jarvis</div>Good morning, Ben. Your calendar's clear until 10:00 and two Trello cards slipped from yesterday. Shall I time-box the deck into that block?</div>
+              <div class="bub u"><div class="who">You</div>Yes — and push the design review to this afternoon.</div>
+              <div class="bub calc-bub">
+                <svg class="mini-ring" viewBox="0 0 40 40" aria-hidden="true"><g class="arc-spin" style="transform-origin:20px 20px"><circle cx="20" cy="20" r="14" fill="none" stroke="#5fe3ff" stroke-width="2.5" stroke-dasharray="26 60" stroke-linecap="round"/></g></svg>
+                Calculating the day…
+              </div>
+            </div>
+            <div class="composer">
+              <div class="field">Ask Jarvis&hellip; <span class="cur">▌</span></div>
+              <button class="send">Send</button>
+            </div>
+          </div>
+          <p class="platform-tag" style="margin-top:10px">Desktop · Web console</p>
+        </div>
+
+        <!-- Phone -->
+        <div class="phone-wrap">
+          <div class="phone">
+            <div class="island"></div>
+            <div class="screen">
+              <div class="statusbar"><span>9:41</span><span>JARVIS ▪ 5G</span></div>
+              <div class="p-head">
+                <div class="nm">JARVIS</div>
+                <div class="st">◍ Listening</div>
+              </div>
+              <div class="p-chat">
+                <div class="bub j"><div class="who">Jarvis</div>Morning, Ben. Clear until 10:00 — protect it for the deck?</div>
+                <div class="bub u"><div class="who">You</div>Yes, lock it in.</div>
+                <div class="bub j"><div class="who">Jarvis</div>Done. "Deck — focus block" is on your calendar, 08:15–10:00.</div>
+              </div>
+              <div class="p-foot">
+                <div class="mini-input"></div>
+                <div class="ptt" role="img" aria-label="Push to talk">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#03070d" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="platform-tag">iOS · Push-to-talk</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ASSETS ============ -->
+  <section>
+    <div class="panel">
+      <span class="bk tl"></span><span class="bk tr"></span><span class="bk bl"></span><span class="bk br"></span>
+      <div class="panel-head">
+        <span class="idx">ASSETS / 06</span>
+        <h2>Visual Assets</h2>
+      </div>
+      <p class="lead">Vector-first so they scale from a 16px favicon to a 1024px app icon without a raster in sight. All drawn from the same arc-reactor geometry.</p>
+      <div class="assets">
+        <div class="asset">
+          <div class="art">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <rect x="4" y="4" width="92" height="92" rx="22" fill="#03070d" stroke="#123246"/>
+              <circle cx="50" cy="50" r="34" fill="none" stroke="#2f8fc4" stroke-width="2.5"/>
+              <circle cx="50" cy="50" r="24" fill="none" stroke="#5fe3ff" stroke-width="2.5" stroke-dasharray="80 30"/>
+              <g stroke="#5fe3ff" stroke-width="3" stroke-linecap="round"><line x1="50" y1="26" x2="50" y2="38"/><line x1="50" y1="62" x2="50" y2="74"/><line x1="26" y1="50" x2="38" y2="50"/><line x1="62" y1="50" x2="74" y2="50"/></g>
+              <circle cx="50" cy="50" r="9" fill="#e8fbff"/>
+            </svg>
+          </div>
+          <div class="nm">App Icon</div>
+          <div class="ds">Arc reactor, dark-cornered</div>
+        </div>
+        <div class="asset">
+          <div class="art">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <circle cx="50" cy="50" r="30" fill="none" stroke="#123246" stroke-width="5"/>
+              <g class="arc-spin" style="transform-origin:50px 50px"><circle cx="50" cy="50" r="30" fill="none" stroke="#5fe3ff" stroke-width="5" stroke-dasharray="60 128" stroke-linecap="round"/></g>
+              <circle cx="50" cy="50" r="6" fill="#5fe3ff" class="dot-core"/>
+            </svg>
+          </div>
+          <div class="nm">Loading Ring</div>
+          <div class="ds">Shared spinner component</div>
+        </div>
+        <div class="asset">
+          <div class="art">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <defs><pattern id="g" width="14" height="14" patternUnits="userSpaceOnUse"><path d="M14 0H0V14" fill="none" stroke="#1d4e6b" stroke-width="1"/></pattern></defs>
+              <rect x="6" y="6" width="88" height="88" rx="6" fill="url(#g)" stroke="#2f8fc4"/>
+              <circle cx="50" cy="50" r="3" fill="#5fe3ff"/>
+            </svg>
+          </div>
+          <div class="nm">HUD Grid</div>
+          <div class="ds">Ambient background layer</div>
+        </div>
+        <div class="asset">
+          <div class="art">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#123246" stroke-width="2"/>
+              <g stroke="#2f8fc4" stroke-width="1.5"><line x1="50" y1="6" x2="50" y2="20"/><line x1="50" y1="80" x2="50" y2="94"/><line x1="6" y1="50" x2="20" y2="50"/><line x1="80" y1="50" x2="94" y2="50"/></g>
+              <circle cx="50" cy="50" r="22" fill="none" stroke="#ffb547" stroke-width="1.5" stroke-dasharray="4 6"/>
+              <circle cx="50" cy="50" r="5" fill="none" stroke="#5fe3ff" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="nm">Reticle</div>
+          <div class="ds">Corner brackets & framing</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TOKENS ============ -->
+  <section>
+    <div class="panel">
+      <span class="bk tl"></span><span class="bk tr"></span><span class="bk bl"></span><span class="bk br"></span>
+      <div class="panel-head">
+        <span class="idx">HANDOFF / 07</span>
+        <h2>Implementation Tokens</h2>
+      </div>
+      <p class="lead">A single source of truth. Web reads these as CSS custom properties; iOS reads the identical values from an Asset Catalog color set — no drift between platforms.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Token</th><th>Hex</th><th>CSS variable</th><th>SwiftUI Color</th></tr></thead>
+          <tbody>
+            <tr><td><span class="swref" style="background:#03070d"></span>Void</td><td>#03070D</td><td>--void</td><td>Color("Void")</td></tr>
+            <tr><td><span class="swref" style="background:#08151f"></span>Panel</td><td>#08151F</td><td>--panel</td><td>Color("Panel")</td></tr>
+            <tr><td><span class="swref" style="background:#5fe3ff"></span>Jarvis Cyan</td><td>#5FE3FF</td><td>--cyan</td><td>Color("JarvisCyan")</td></tr>
+            <tr><td><span class="swref" style="background:#2f8fc4"></span>Wireframe</td><td>#2F8FC4</td><td>--cyan-deep</td><td>Color("Wireframe")</td></tr>
+            <tr><td><span class="swref" style="background:#e8fbff"></span>Hologram</td><td>#E8FBFF</td><td>--holo</td><td>Color("Hologram")</td></tr>
+            <tr><td><span class="swref" style="background:#ffb547"></span>Stark Gold</td><td>#FFB547</td><td>--gold</td><td>Color("StarkGold")</td></tr>
+            <tr><td><span class="swref" style="background:#ff5d4a"></span>Alert</td><td>#FF5D4A</td><td>--alert</td><td>Color("Alert")</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>JARVIS Interface Design System · Mark I · Proposed for review</footer>
+
+</div>
+
+<script>
+  // Generate radial tick marks for the hero's outer ring (cleaner than hand-authoring 60 lines).
+  (function () {
+    const g = document.getElementById("ticks");
+    if (!g) return;
+    const cx = 150, cy = 150, rOuter = 138, ns = "http://www.w3.org/2000/svg";
+    for (let i = 0; i < 60; i++) {
+      const a = (i / 60) * Math.PI * 2;
+      const major = i % 5 === 0;
+      const rInner = rOuter - (major ? 10 : 5);
+      const line = document.createElementNS(ns, "line");
+      line.setAttribute("x1", cx + Math.cos(a) * rInner);
+      line.setAttribute("y1", cy + Math.sin(a) * rInner);
+      line.setAttribute("x2", cx + Math.cos(a) * rOuter);
+      line.setAttribute("y2", cy + Math.sin(a) * rOuter);
+      line.setAttribute("stroke", major ? "#5fe3ff" : "#2f8fc4");
+      line.setAttribute("stroke-width", major ? "1.6" : "1");
+      line.setAttribute("opacity", major ? "0.9" : "0.5");
+      g.appendChild(line);
+    }
+  })();
+</script>
+</body>
+</html>
