@@ -136,7 +136,7 @@
             if (!line) continue;
             const event = JSON.parse(line);
             if (event.type === "tool") {
-              bubble.textContent = "Using " + event.name + "…";
+              bubble.textContent = "<" + event.name + ">";
             } else if (event.type === "final") {
               data = event;
             }
