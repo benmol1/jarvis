@@ -34,11 +34,15 @@ def _is_jarvis(event: dict) -> bool:
     return JARVIS_TAG in (event.get("description") or "")
 
 
-def get_upcoming_events(days: int = 7) -> list[dict]:
-    service = get_calendar_service()
+def get_upcoming_events(days: int = 14) -> list[dict]:
     now = datetime.now(UTC)
-    time_min = now.isoformat()
-    time_max = (now + timedelta(days=days)).isoformat()
+    return get_events_in_range(now.isoformat(), (now + timedelta(days=days)).isoformat())
+
+
+def get_events_in_range(time_min: str, time_max: str) -> list[dict]:
+    """Events across all calendars in an arbitrary ISO 8601 window. Backs both
+    the default prompt-context lookahead and the on-demand list_events tool."""
+    service = get_calendar_service()
 
     # Every calendar the account can see (primary + shared, e.g. the one with
     # Emma), not just "primary".

@@ -150,6 +150,21 @@ TOOLS = [
         },
     },
     {
+        "name": "list_events",
+        "description": (
+            "Look up events in a specific date range, e.g. when Ben asks about a "
+            "week or month outside the events already listed in context."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "start": {"type": "string", "description": "ISO 8601 with offset"},
+                "end": {"type": "string", "description": "ISO 8601 with offset"},
+            },
+            "required": ["start", "end"],
+        },
+    },
+    {
         "name": "save_plan",
         "description": "Record the agreed day plan so tomorrow's Jarvis knows what was planned.",
         "input_schema": {
@@ -224,6 +239,12 @@ def execute_tool(name: str, inp: dict, pending: list) -> str:
             }
         )
         return f"Queued for Ben's approval: {label}. Not yet applied."
+
+    if name == "list_events":
+        events = calendar_tool.get_events_in_range(inp["start"], inp["end"])
+        if not events:
+            return "No events found in that range."
+        return "\n".join(f"{e['start']} to {e['end']}: {e['summary']} ({e['calendar']})" for e in events)
 
     if name == "save_plan":
         state = load_state()
