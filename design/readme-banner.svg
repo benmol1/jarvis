@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 280" width="1200" height="280" role="img" aria-label="JARVIS — personal daily-planning assistant">
+  <defs>
+    <radialGradient id="bg1" cx="50%" cy="-10%" r="75%">
+      <stop offset="0%" stop-color="#0a2233"/>
+      <stop offset="60%" stop-color="#03070d" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="bg2" cx="100%" cy="120%" r="70%">
+      <stop offset="0%" stop-color="#071a24"/>
+      <stop offset="55%" stop-color="#03070d" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse">
+      <path d="M28 0H0V28" fill="none" stroke="#2f8fc4" stroke-width="1" opacity=".08"/>
+    </pattern>
+    <radialGradient id="core" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="26%" stop-color="#e8fbff"/>
+      <stop offset="55%" stop-color="#5fe3ff"/>
+      <stop offset="78%" stop-color="#5fe3ff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="glowSoft" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+
+  <!-- ground -->
+  <rect width="1200" height="280" fill="#03070d"/>
+  <rect width="1200" height="280" fill="url(#bg1)"/>
+  <rect width="1200" height="280" fill="url(#bg2)"/>
+  <rect width="1200" height="280" fill="url(#grid)"/>
+
+  <!-- corner reticles -->
+  <g stroke="#2f8fc4" stroke-width="1.5" opacity=".85">
+    <path d="M18 34 V18 H34" fill="none"/>
+    <path d="M1182 34 V18 H1166" fill="none"/>
+    <path d="M18 246 V262 H34" fill="none"/>
+    <path d="M1182 246 V262 H1166" fill="none"/>
+  </g>
+
+  <!-- arc-reactor mark -->
+  <g transform="translate(150,140)">
+    <circle r="98" fill="none" stroke="#123246" stroke-width="1"/>
+    <circle r="86" fill="none" stroke="#1d4e6b" stroke-width="1"/>
+    <circle r="86" fill="none" stroke="#2f8fc4" stroke-width="1.4" stroke-dasharray="2 6" opacity=".7"/>
+    <circle r="68" fill="none" stroke="#5fe3ff" stroke-width="2" stroke-dasharray="42 24 10 24" opacity=".9"/>
+    <circle r="56" fill="none" stroke="#123246" stroke-width="7"/>
+    <circle r="56" fill="none" stroke="#5fe3ff" stroke-width="2.5" stroke-dasharray="88 190" stroke-linecap="round"/>
+    <circle r="56" fill="none" stroke="#ffb547" stroke-width="2.5" stroke-dasharray="24 254" stroke-dashoffset="-140" stroke-linecap="round"/>
+    <g stroke="#1d4e6b" stroke-width="1">
+      <line x1="0" y1="-108" x2="0" y2="-92"/>
+      <line x1="0" y1="108" x2="0" y2="92"/>
+      <line x1="-108" y1="0" x2="-92" y2="0"/>
+      <line x1="108" y1="0" x2="92" y2="0"/>
+    </g>
+    <circle r="26" fill="url(#core)" filter="url(#glowSoft)"/>
+    <circle r="15" fill="url(#core)"/>
+  </g>
+
+  <!-- wordmark -->
+  <g filter="url(#glow)">
+    <text x="320" y="150" font-family="ui-monospace, 'SF Mono', 'JetBrains Mono', 'Cascadia Code', monospace"
+          font-size="64" font-weight="700" letter-spacing="18" fill="#e8fbff">JARVIS</text>
+  </g>
+
+  <!-- tagline -->
+  <text x="322" y="186" font-family="ui-monospace, 'SF Mono', 'JetBrains Mono', 'Cascadia Code', monospace"
+        font-size="14" letter-spacing="4.5" fill="#3a6f8a">PERSONAL DAILY-PLANNING ASSISTANT<tspan fill="#ffb547" dx="12">//</tspan><tspan fill="#3a6f8a" dx="12">MARK I</tspan></text>
+
+  <!-- baseline hairline -->
+  <line x1="322" y1="204" x2="1000" y2="204" stroke="#123246" stroke-width="1"/>
+  <circle cx="1000" cy="204" r="2.5" fill="#ffb547"/>
+</svg>
