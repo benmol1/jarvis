@@ -133,6 +133,9 @@
       box-shadow: 0 0 18px rgba(95,227,255,.06);
     }
     .msg.jarvis .who { color: var(--cyan); }
+    /* Jarvis speaks in the HUD's data face, matching the iOS bubble's
+       JetBrains Mono body text — the user's own side stays system-sans. */
+    .msg.jarvis .body { font-family: var(--font-data); font-size: .82rem; }
     .msg.you {
       align-self: flex-end;
       background: linear-gradient(180deg, rgba(60,40,10,.42), rgba(28,20,6,.42));
@@ -269,6 +272,14 @@
       headerMark.innerHTML = ringSVG(kind);
     }
 
+    // Escapes HTML first, then turns **bold** into <strong> — the only
+    // markdown Jarvis's replies tend to use. Never applied to what the user
+    // typed, so literal asterisks in your own messages stay literal.
+    function renderMarkdown(text) {
+      const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      return escaped.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    }
+
     function add(text, cls) {
       const div = document.createElement("div");
       div.className = "msg " + cls;
@@ -276,7 +287,12 @@
       who.className = "who";
       who.textContent = cls === "you" ? "You" : "Jarvis";
       const body = document.createElement("div");
-      body.textContent = text;
+      body.className = "body";
+      if (cls === "you") {
+        body.textContent = text;
+      } else {
+        body.innerHTML = renderMarkdown(text);
+      }
       div.append(who, body);
       log.append(div);
       div.scrollIntoView();
@@ -401,7 +417,8 @@
 
         pending.innerHTML = '<div class="who">Jarvis</div>';
         const body = document.createElement("div");
-        body.textContent = data.reply;
+        body.className = "body";
+        body.innerHTML = renderMarkdown(data.reply);
         pending.append(body);
         if (data.is_draft) addCopyButton(body, data.reply);
         pending.scrollIntoView();

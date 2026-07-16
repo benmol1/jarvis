@@ -10,7 +10,6 @@ struct HeaderView: View {
     var activity: HeaderActivity = .standby
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var spin: Double = 0
     @State private var breathe: Double = 0.45
 
     var body: some View {
@@ -52,9 +51,6 @@ struct HeaderView: View {
         }
         .onAppear {
             guard !reduceMotion else { return }
-            withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
-                spin = 360
-            }
             withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
                 breathe = 1.0
             }
@@ -65,15 +61,24 @@ struct HeaderView: View {
     private var headerMark: some View {
         switch activity {
         case .standby:
-            arcReactorMark.transition(.opacity)
+            ArcReactorMark().transition(.opacity)
         case .thinking:
             CalculatingRing(diameter: 34).transition(.opacity)
         case .processing:
             ProcessingRing(diameter: 34).transition(.opacity)
         }
     }
+}
 
-    private var arcReactorMark: some View {
+/// Idle "standby" mark — two counter-rotating arcs around a glowing core.
+/// A dedicated view (rather than inline in `HeaderView`) so its spin restarts
+/// each time it remounts, e.g. when activity returns to `.standby` after
+/// `.thinking`/`.processing` — otherwise it renders as a static frame.
+private struct ArcReactorMark: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var spin: Double = 0
+
+    var body: some View {
         ZStack {
             Circle().stroke(Color.jarvisLine, lineWidth: 2)
             Circle()
@@ -88,6 +93,12 @@ struct HeaderView: View {
             Circle()
                 .fill(Color.jarvisHologram)
                 .frame(width: 6, height: 6)
+        }
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
+                spin = 360
+            }
         }
     }
 }
