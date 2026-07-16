@@ -13,21 +13,29 @@ struct ChatRequestBody: Encodable {
     let history: [Turn]
 }
 
-/// A foreign-event change Jarvis proposed but didn't apply — queued for
-/// approval. Encodable so the same value can be POSTed straight to /apply
-/// (mirrors the web client sending the whole `item` back, label included;
-/// the backend ignores the extra field).
+/// A change Jarvis proposed but didn't apply — queued for approval (a foreign-
+/// event edit, or anything that invites other people). Encodable so the same
+/// value can be POSTed straight to /apply (mirrors the web client sending the
+/// whole `item` back, extra fields and all). `id` ties it to the server's
+/// persisted queue so /apply can clear it once applied; `eventId` is absent for
+/// a queued create_event, so both it and the field-edit properties are optional.
 struct PendingAction: Codable, Equatable {
+    let id: String?
     let action: String
     let calendarId: String
-    let eventId: String
+    let eventId: String?
+    let summary: String?
     let start: String?
     let end: String?
+    let title: String?
+    let location: String?
+    let description: String?
+    let attendees: [String]?
     let destinationCalendarId: String?
     let label: String
 
     enum CodingKeys: String, CodingKey {
-        case action, label, start, end
+        case id, action, label, summary, start, end, title, location, description, attendees
         case calendarId = "calendar_id"
         case eventId = "event_id"
         case destinationCalendarId = "destination_calendar_id"

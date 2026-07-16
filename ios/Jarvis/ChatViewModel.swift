@@ -97,6 +97,10 @@ final class ChatViewModel: ObservableObject {
                 $0.isDraft = final.isDraft ?? false
             }
 
+            // The backend persists approvals and returns the full outstanding
+            // set every turn, so render it fresh at the bottom rather than
+            // appending — items approved or cancelled elsewhere simply drop out.
+            messages.removeAll { $0.role == .approvals }
             if let pending = final.pending, !pending.isEmpty {
                 var approvals = ChatMessage(role: .approvals)
                 approvals.pendingActions = pending
