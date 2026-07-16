@@ -19,6 +19,17 @@ See [DESIGN.md](DESIGN.md) for the full architecture and rationale, and
 
 <br>
 
+<div align="center">
+<table>
+<tr>
+<td align="center" width="65%"><img src="design/screenshots/desktop-console.png" alt="Desktop web console" width="100%" /><br><sub>Desktop · Web console</sub></td>
+<td align="center" width="35%"><img src="design/screenshots/ios-app.png" alt="iOS app, push-to-talk" width="100%" /><br><sub>iOS · Push-to-talk</sub></td>
+</tr>
+</table>
+</div>
+
+<br>
+
 ## `DIR/01` Architecture
 
 ```

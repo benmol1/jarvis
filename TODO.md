@@ -1,6 +1,6 @@
 # Jarvis — TODO
 
-*Last updated: 2026-07-15 13:38*
+*Last updated: 2026-07-16 10:19*
 
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
@@ -167,8 +167,18 @@ else's** event is queued for Ben's approval in the app.
 - [x] Approval/copy view in the app (web front-end): pending foreign-event
       changes render **Approve** buttons that POST to `/apply`
 - [x] Persist the day's plan into rolling state (`save_plan` tool → `state.json`)
-- [ ] Refactor toolset
+- [x] Refactor toolset
+  - `create_time_box` → `create_event` (adds location, description, attendees,
+    >14-day conflict warning); `move_event` replaced by `modify_event`
+    (patches any subset of fields, refreshes "modified at" only on
+    Jarvis-owned events so foreign ones don't flip ownership)
+  - Added `list_calendars`, `respond_to_event` (RSVP), `cancel_approval`
+  - Approvals persisted in `state["pending_approvals"]` with stable ids
+    (`/apply` clears by id); any change inviting other people is queued
+  - Reconciled client-side (web + iOS) instead of appending a bubble per turn
 - [ ] Make sure JARVIS can automatically fill locations
+  - `create_event`/`modify_event` now accept an optional `location`, but
+    Jarvis only fills it when asked — no auto-inference yet
 - [x] iOS: mirror the approval/copy view (done in Phase 2.5 — iOS Interface)
 - [ ] Deploy and verify on the Pi (tested locally only so far)
 
@@ -272,6 +282,9 @@ Same `/chat` backend, a second client. No new framework — plain HTML + fetch, 
     swaps in the final reply
 - [~] Confirm plan display works in a wide viewport (no mobile constraints to design around)
   - Page is 800px-max centred, transcript style; structured plan display still pending Phase 1
+- [x] Render `**bold**` markdown in Jarvis's replies (web), matching the iOS
+      bubble's behaviour; own messages stay plain text. Jarvis's replies also
+      switched to a dedicated JetBrains Mono body font, matching iOS.
 - [ ] (Later) Persist chat history in the page via `localStorage` if useful
 
 Not building: an in-app calendar/Trello view. Jarvis's writes already show up in the real Google Calendar/Trello apps — use those side-by-side with Jarvis instead of replicating their UI.
@@ -286,8 +299,15 @@ Not building: an in-app calendar/Trello view. Jarvis's writes already show up in
 
 ## Bug fixes ⏳ IN PROGRESS
 
-- [ ] Bug where JARVIS asked to rename an existing event (which he didn't create) but he called the move_event tool so nothing happened.
+- [x] Bug where JARVIS asked to rename an existing event (which he didn't
+      create) but he called the move_event tool so nothing happened
+      (logged in `bugs/bug_log.txt` as "No modify_event tool"). Fixed by the
+      calendar tools refactor: `move_event` replaced with `modify_event`,
+      which patches any subset of fields (including title) on an event.
 - [ ] The approval message showed a timestamp in a format that's a bit difficult to read - change to YYYY-MM-DD | hh:mm
+- [ ] "Weekend" is sometimes misinterpreted instead of always meaning
+      Saturday + Sunday in the current timezone — suspected BST/GMT confusion
+      (logged in `bugs/bug_log.txt`)
 - [x] Desktop redesign PR regressed the chat UI: reverted the NDJSON stream
       reader back to `res.json()` (broke tool-progress display with a JSON
       parse error) and silently dropped the `addCopyButton`/`renderApprovals`
@@ -295,3 +315,8 @@ Not building: an in-app calendar/Trello view. Jarvis's writes already show up in
 - [x] Approve/Copy buttons rendered oversized after the redesign (inherited
       the full Send-button styling, no `.mini` class defined). Added
       `button.mini` sizing plus proper row padding for the approvals box.
+- [x] iOS standby arc-reactor mark rendered as a static (non-spinning) frame
+      after returning from `.thinking`/`.processing` back to `.standby` —
+      the `@State` spin animation was scoped to `HeaderView`, so it never
+      restarted on remount. Moved to a dedicated `ArcReactorMark` view so
+      its `onAppear` fires again each time it remounts.
