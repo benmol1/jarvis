@@ -319,42 +319,77 @@
       div.append(" ", btn);
     }
 
-    // Foreign-event changes Jarvis proposed but didn't apply. One Approve
+    // Changes Jarvis proposed but didn't apply (foreign-event edits, or invites
+    // to other people). The server persists the outstanding set and returns the
+    // full list every turn, so we reconcile rows by id: new ones are added,
+    // ones that were approved or cancelled elsewhere drop out. One Approve
     // button each; approving POSTs to /apply, which does the actual write.
-    function renderApprovals(items) {
-      const box = document.createElement("div");
-      box.className = "msg jarvis approvals";
-      box.innerHTML = "<strong>Needs your approval:</strong>";
-      for (const item of items) {
-        const row = document.createElement("div");
-        row.className = "row";
-        const label = document.createElement("span");
-        label.textContent = item.label;
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "mini";
-        btn.textContent = "Approve";
-        btn.addEventListener("click", async () => {
-          btn.disabled = true;
-          btn.textContent = "…";
-          try {
-            const res = await fetch("/apply", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(item),
-            });
-            if (!res.ok) throw new Error("HTTP " + res.status);
-            btn.textContent = "Approved ✓";
-          } catch (err) {
-            btn.disabled = false;
-            btn.textContent = "Retry (" + err.message + ")";
+    let approvalsBox = null;
+    const approvalRows = new Map(); // id -> row element
+
+    function makeApprovalRow(item) {
+      const row = document.createElement("div");
+      row.className = "row";
+      const label = document.createElement("span");
+      label.textContent = item.label;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "mini";
+      btn.textContent = "Approve";
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        btn.textContent = "…";
+        try {
+          const res = await fetch("/apply", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(item),
+          });
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          // Applied server-side and dropped from the queue — remove the row.
+          approvalRows.delete(item.id);
+          row.remove();
+          if (approvalsBox && !approvalRows.size) {
+            approvalsBox.remove();
+            approvalsBox = null;
           }
-        });
-        row.append(label, btn);
-        box.append(row);
+        } catch (err) {
+          btn.disabled = false;
+          btn.textContent = "Retry (" + err.message + ")";
+        }
+      });
+      row.append(label, btn);
+      return row;
+    }
+
+    function renderApprovals(items) {
+      const ids = new Set(items.map((i) => i.id));
+      for (const [id, row] of approvalRows) {
+        if (!ids.has(id)) {
+          row.remove();
+          approvalRows.delete(id);
+        }
       }
-      log.append(box);
-      box.scrollIntoView();
+      if (!items.length) {
+        if (approvalsBox) {
+          approvalsBox.remove();
+          approvalsBox = null;
+        }
+        return;
+      }
+      if (!approvalsBox) {
+        approvalsBox = document.createElement("div");
+        approvalsBox.className = "msg jarvis approvals";
+        approvalsBox.innerHTML = "<strong>Needs your approval:</strong>";
+      }
+      log.append(approvalsBox); // keep it at the bottom of the log
+      for (const item of items) {
+        if (approvalRows.has(item.id)) continue;
+        const row = makeApprovalRow(item);
+        approvalRows.set(item.id, row);
+        approvalsBox.append(row);
+      }
+      approvalsBox.scrollIntoView();
     }
 
     // Session memory: the browser holds the conversation and replays it each
@@ -422,7 +457,7 @@
         pending.append(body);
         if (data.is_draft) addCopyButton(body, data.reply);
         pending.scrollIntoView();
-        if (data.pending && data.pending.length) renderApprovals(data.pending);
+        renderApprovals(data.pending || []);
         history.push({ role: "user", content: message });
         history.push({ role: "assistant", content: data.reply });
       } catch (err) {

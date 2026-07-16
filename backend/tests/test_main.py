@@ -2,6 +2,8 @@ import json
 import os
 from unittest.mock import MagicMock
 
+import pytest
+
 os.environ.setdefault("ANTHROPIC_API_KEY", "test-key")
 
 from fastapi.testclient import TestClient
@@ -9,6 +11,21 @@ from fastapi.testclient import TestClient
 import main
 
 client = TestClient(main.app)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_state(monkeypatch):
+    """Keep rolling state in memory so /chat's end-of-turn save_state never
+    touches the repo's state.json. Individual tests may still override these."""
+    store = {}
+    monkeypatch.setattr(main, "load_state", lambda: json.loads(json.dumps(store)))
+
+    def _save(state):
+        store.clear()
+        store.update(state)
+
+    monkeypatch.setattr(main, "save_state", _save)
+    return store
 
 
 def _chat(**kwargs):
@@ -129,76 +146,147 @@ def test_chat_survives_a_failing_integration(monkeypatch):
 # --- write / approval branches -------------------------------------------------
 
 
-def test_create_time_box_applies_immediately(monkeypatch):
+def _state():
+    """A fresh rolling-state dict for execute_tool, with an empty approval queue."""
+    return {"pending_approvals": []}
+
+
+def test_create_event_applies_immediately(monkeypatch):
     created = {}
     monkeypatch.setattr(
         main.calendar_tool,
         "create_event",
-        lambda summary, start, end, cal="primary": created.update(summary=summary, cal=cal),
+        lambda summary, start, end, cal="primary", **kw: created.update(summary=summary, cal=cal),
     )
-    pending = []
+    state = _state()
 
     main.execute_tool(
-        "create_time_box",
+        "create_event",
         {"summary": "Deep work", "start": "S", "end": "E"},
-        pending,
+        state,
         {"draft": False},
     )
 
     assert created["summary"] == "Deep work"
-    assert pending == []
+    assert state["pending_approvals"] == []
 
 
-def test_move_jarvis_event_applies_immediately(monkeypatch):
+def test_create_event_with_attendees_is_queued(monkeypatch):
+    """Inviting other people is outward-facing, so it waits for Ben's approval
+    rather than emailing invites straight away."""
+    created = []
+    monkeypatch.setattr(
+        main.calendar_tool, "create_event", lambda *a, **kw: created.append((a, kw))
+    )
+    state = _state()
+
+    main.execute_tool(
+        "create_event",
+        {"summary": "Lunch", "start": "S", "end": "E", "attendees": ["a@b.com"]},
+        state,
+        {"draft": False},
+    )
+
+    assert created == []  # not created until approved
+    item = state["pending_approvals"][0]
+    assert item["action"] == "create_event"
+    assert item["attendees"] == ["a@b.com"]
+    assert item["id"]
+
+
+def test_create_event_warns_on_conflict_far_out(monkeypatch):
+    """Beyond the 14-day context window Jarvis can't see clashes, so create_event
+    checks and warns (but still creates)."""
+    monkeypatch.setattr(main.calendar_tool, "create_event", lambda *a, **kw: None)
+    monkeypatch.setattr(
+        main.calendar_tool,
+        "find_conflicts",
+        lambda start, end: [{"summary": "Standup", "start": "2027-01-02T09:00:00+00:00"}],
+    )
+    state = _state()
+
+    result = main.execute_tool(
+        "create_event",
+        {"summary": "Deep work", "start": "2027-01-02T09:00:00+00:00", "end": "2027-01-02T10:00"},
+        state,
+        {"draft": False},
+    )
+
+    assert "Warning" in result and "Standup" in result
+
+
+def test_modify_jarvis_event_applies_immediately(monkeypatch):
     monkeypatch.setattr(
         main.calendar_tool, "get_event", lambda c, i: {"summary": "Focus", "jarvis": True}
     )
-    moved = []
-    monkeypatch.setattr(main.calendar_tool, "update_event", lambda *a: moved.append(a))
-    pending = []
+    modified = []
+    monkeypatch.setattr(main.calendar_tool, "modify_event", lambda *a, **kw: modified.append(kw))
+    state = _state()
 
     main.execute_tool(
-        "move_event",
+        "modify_event",
         {"event_id": "x", "calendar_id": "primary", "start": "S", "end": "E"},
-        pending,
+        state,
         {"draft": False},
     )
 
-    assert len(moved) == 1
-    assert pending == []
+    assert modified == [{"start": "S", "end": "E"}]
+    assert state["pending_approvals"] == []
 
 
-def test_move_foreign_event_is_queued_not_applied(monkeypatch):
+def test_modify_foreign_event_is_queued_not_applied(monkeypatch):
     monkeypatch.setattr(
         main.calendar_tool, "get_event", lambda c, i: {"summary": "Dentist", "jarvis": False}
     )
-    moved = []
-    monkeypatch.setattr(main.calendar_tool, "update_event", lambda *a: moved.append(a))
-    pending = []
+    modified = []
+    monkeypatch.setattr(main.calendar_tool, "modify_event", lambda *a, **kw: modified.append(kw))
+    state = _state()
 
     main.execute_tool(
-        "move_event",
-        {"event_id": "x", "calendar_id": "primary", "start": "S", "end": "E"},
-        pending,
+        "modify_event",
+        {"event_id": "x", "calendar_id": "primary", "title": "New title"},
+        state,
         {"draft": False},
     )
 
-    assert moved == []  # foreign event must NOT be touched without approval
-    assert len(pending) == 1
-    assert pending[0]["action"] == "move_event"
-    assert pending[0]["event_id"] == "x"
+    assert modified == []  # foreign event must NOT be touched without approval
+    item = state["pending_approvals"][0]
+    assert item["action"] == "modify_event"
+    assert item["event_id"] == "x"
+    assert item["title"] == "New title"
 
 
-def test_create_time_box_targets_named_calendar(monkeypatch):
+def test_modify_jarvis_event_with_attendees_is_queued(monkeypatch):
+    """Even on a Jarvis-owned event, adding attendees emails invites, so it
+    still needs Ben's approval."""
+    monkeypatch.setattr(
+        main.calendar_tool, "get_event", lambda c, i: {"summary": "Focus", "jarvis": True}
+    )
+    modified = []
+    monkeypatch.setattr(main.calendar_tool, "modify_event", lambda *a, **kw: modified.append(kw))
+    state = _state()
+
+    main.execute_tool(
+        "modify_event",
+        {"event_id": "x", "calendar_id": "primary", "attendees": ["a@b.com"]},
+        state,
+        {"draft": False},
+    )
+
+    assert modified == []
+    assert state["pending_approvals"][0]["attendees"] == ["a@b.com"]
+
+
+def test_create_event_targets_named_calendar(monkeypatch):
     calls = []
     monkeypatch.setattr(
-        main.calendar_tool, "create_event", lambda summary, start, end, cal: calls.append(cal)
+        main.calendar_tool, "create_event", lambda summary, start, end, cal, **kw: calls.append(cal)
     )
 
     main.execute_tool(
-        "create_time_box",
+        "create_event",
         {"summary": "Date night", "start": "S", "end": "E", "calendar_id": "joint@group"},
-        [],
+        _state(),
         {"draft": False},
     )
 
@@ -211,17 +299,17 @@ def test_move_to_calendar_jarvis_event_applies_immediately(monkeypatch):
     )
     moved = []
     monkeypatch.setattr(main.calendar_tool, "move_event_to_calendar", lambda *a: moved.append(a))
-    pending = []
+    state = _state()
 
     main.execute_tool(
         "move_to_calendar",
         {"event_id": "x", "calendar_id": "primary", "destination_calendar_id": "joint@group"},
-        pending,
+        state,
         {"draft": False},
     )
 
     assert moved == [("primary", "x", "joint@group")]
-    assert pending == []
+    assert state["pending_approvals"] == []
 
 
 def test_move_to_calendar_foreign_event_is_queued(monkeypatch):
@@ -230,18 +318,19 @@ def test_move_to_calendar_foreign_event_is_queued(monkeypatch):
     )
     moved = []
     monkeypatch.setattr(main.calendar_tool, "move_event_to_calendar", lambda *a: moved.append(a))
-    pending = []
+    state = _state()
 
     main.execute_tool(
         "move_to_calendar",
         {"event_id": "x", "calendar_id": "primary", "destination_calendar_id": "joint@group"},
-        pending,
+        state,
         {"draft": False},
     )
 
     assert moved == []  # foreign event must NOT be moved without approval
-    assert pending[0]["action"] == "move_to_calendar"
-    assert pending[0]["destination_calendar_id"] == "joint@group"
+    item = state["pending_approvals"][0]
+    assert item["action"] == "move_to_calendar"
+    assert item["destination_calendar_id"] == "joint@group"
 
 
 def test_copy_event_applies_immediately_even_for_foreign(monkeypatch):
@@ -253,14 +342,84 @@ def test_copy_event_applies_immediately_even_for_foreign(monkeypatch):
         "copy_event",
         lambda c, i, dest: copied.append((c, i, dest)) or {"summary": "Dentist"},
     )
-    pending = []
+    state = _state()
 
     main.execute_tool(
         "copy_event",
         {"event_id": "x", "calendar_id": "primary", "destination_calendar_id": "joint@group"},
-        pending,
+        state,
         {"draft": False},
     )
 
     assert copied == [("primary", "x", "joint@group")]
-    assert pending == []
+    assert state["pending_approvals"] == []
+
+
+def test_respond_to_event_applies_immediately(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        main.calendar_tool, "respond_to_event", lambda c, i, r: calls.append((c, i, r))
+    )
+
+    main.execute_tool(
+        "respond_to_event",
+        {"event_id": "x", "calendar_id": "primary", "response": "accepted"},
+        _state(),
+        {"draft": False},
+    )
+
+    assert calls == [("primary", "x", "accepted")]
+
+
+def test_cancel_approval_removes_queued_item():
+    state = {"pending_approvals": [{"id": "abc", "label": "Delete 'Dentist'"}]}
+
+    result = main.execute_tool("cancel_approval", {"approval_id": "abc"}, state, {"draft": False})
+
+    assert "Cancelled" in result
+    assert state["pending_approvals"] == []
+
+
+def test_cancel_approval_unknown_id_is_a_noop():
+    state = {"pending_approvals": [{"id": "abc", "label": "Delete 'Dentist'"}]}
+
+    result = main.execute_tool("cancel_approval", {"approval_id": "nope"}, state, {"draft": False})
+
+    assert "No pending approval" in result
+    assert len(state["pending_approvals"]) == 1
+
+
+# --- cross-turn approval persistence (through the HTTP layer) -------------------
+
+
+def test_queued_approval_persists_across_turns_and_apply_clears_it(monkeypatch, _isolate_state):
+    """A foreign-event edit queues to persisted state, is returned again on a
+    later turn (so a fresh client re-renders it), and /apply drops it by id."""
+    monkeypatch.setattr(
+        main.calendar_tool, "get_event", lambda c, i: {"summary": "Dentist", "jarvis": False}
+    )
+    main.client.messages.create = MagicMock(
+        side_effect=[
+            _tool_use_response("delete_event", {"event_id": "x", "calendar_id": "primary"}),
+            _text_response("queued for your approval"),
+        ]
+    )
+
+    _, events = _chat(json={"message": "cancel my dentist appointment"})
+    pending = events[-1]["pending"]
+    assert len(pending) == 1 and pending[0]["action"] == "delete_event"
+    approval_id = pending[0]["id"]
+    assert _isolate_state["pending_approvals"][0]["id"] == approval_id  # persisted
+
+    # A later turn that touches nothing still surfaces the outstanding approval.
+    main.client.messages.create = MagicMock(return_value=_text_response("anything else?"))
+    _, events = _chat(json={"message": "thanks"})
+    assert [p["id"] for p in events[-1]["pending"]] == [approval_id]
+
+    # Approving it applies the delete and clears it from the queue.
+    deleted = []
+    monkeypatch.setattr(main.calendar_tool, "delete_event", lambda c, i: deleted.append((c, i)))
+    res = client.post("/apply", json=pending[0])
+    assert res.status_code == 200
+    assert deleted == [("primary", "x")]
+    assert _isolate_state["pending_approvals"] == []
