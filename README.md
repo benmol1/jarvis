@@ -42,7 +42,32 @@ table in DESIGN.md. Phase 0 (phone → Pi → Claude round-trip) is nearly done;
 
 <br>
 
-## `SYS/02` Repo layout
+## `CAL/02` Calendar tools
+
+Jarvis freely mutates events it created itself (tagged in the description); a change
+to anyone else's event, or one that emails other people, is queued for Ben to approve
+in the app instead of applied immediately. Defined in
+[`backend/main.py`](backend/main.py) (`TOOLS`) and
+[`backend/calendar_tool.py`](backend/calendar_tool.py).
+
+| Tool | Does | Approval |
+|---|---|---|
+| `create_event` | Create an event (summary, start/end, calendar, location, description, attendees) | Immediate, unless it has attendees (real invites get queued) |
+| `modify_event` | Change any subset of an event's start, end, title, location, description, attendees | Immediate if Jarvis-owned and no attendees are being added; otherwise queued |
+| `delete_event` | Delete an event | Immediate if Jarvis-owned; otherwise queued |
+| `move_to_calendar` | Move an event to a different calendar, keeping its time | Immediate if Jarvis-owned; otherwise queued |
+| `copy_event` | Duplicate an event into another calendar, leaving the original | Always immediate (non-destructive) |
+| `list_events` | Look up events in an arbitrary date range, beyond the 14-day prompt window | N/A (read-only) |
+| `list_calendars` | List Ben's calendars as name/id pairs | N/A (read-only) |
+| `respond_to_event` | RSVP (accepted/declined/tentative) to an event Ben was invited to | Always immediate (Ben's own RSVP) |
+| `cancel_approval` | Retract a change still awaiting Ben's approval | N/A |
+
+`create_event` also warns (but still creates) if a far-out event (>14 days away, past
+the prompt's normal lookahead) overlaps something already on the calendar.
+
+<br>
+
+## `SYS/03` Repo layout
 
 ```
 backend/    FastAPI service, Docker deployment, tests
@@ -53,7 +78,7 @@ TODO.md     Detailed task tracking per phase
 
 <br>
 
-## `SYS/03` Getting started
+## `SYS/04` Getting started
 
 ### ▸ Backend
 
@@ -94,14 +119,17 @@ xcodegen generate
 open Jarvis.xcodeproj
 ```
 
-Edit `backendURL` in `ContentView.swift` to point at your Pi's Tailscale hostname, then
-build and run on a physical iPhone (the app requires a plain-HTTP ATS exception for the
-tailnet connection, so it won't run in environments that block that). See
+Edit `backendBaseURL` in `ChatViewModel.swift` to point at your Pi's Tailscale
+hostname, then build and run on a physical iPhone (the app requires a plain-HTTP ATS
+exception for the tailnet connection, so it won't run in environments that block
+that). To build, install, and launch on a connected iPhone without opening Xcode, use
+`ios/scripts/deploy-to-iphone.sh` — remember to rerun it after any change under
+`ios/Jarvis/`, since the phone only ever runs whatever was last deployed to it. See
 [ios/README.md](ios/README.md) for more detail.
 
 <br>
 
-## `SYS/04` Status
+## `SYS/05` Status
 
 Single-user personal project, not intended for App Store distribution or multi-tenant
 use. See [TODO.md](TODO.md) for exactly what's done and what's next.
