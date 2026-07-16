@@ -4,6 +4,7 @@ __pycache__/
 .env
 .DS_Store
 xcuserdata/
+ios/scripts/.derivedData/
 backend/about_ben.md
 backend/state.json
 
