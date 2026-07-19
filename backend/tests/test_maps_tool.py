@@ -283,6 +283,57 @@ def test_plan_route_returns_empty_when_no_route(monkeypatch):
     assert maps_tool.plan_route("A", "B", mode="transit") == {}
 
 
+def test_resolve_location_expands_saved_aliases(monkeypatch):
+    monkeypatch.setenv("JARVIS_HOME_ADDRESS", "1 Acacia Ave, Guildford")
+    monkeypatch.setenv("JARVIS_WORK_ADDRESS", "10 Office Rd, London")
+
+    assert maps_tool.resolve_location("home") == "1 Acacia Ave, Guildford"
+    assert (
+        maps_tool.resolve_location(" Work ") == "10 Office Rd, London"
+    )  # trimmed, case-insensitive
+    # Anything that isn't a saved alias passes straight through.
+    assert maps_tool.resolve_location("Nando's Guildford") == "Nando's Guildford"
+
+
+def test_resolve_location_passes_through_when_unset(monkeypatch):
+    monkeypatch.delenv("JARVIS_HOME_ADDRESS", raising=False)
+    monkeypatch.delenv("JARVIS_WORK_ADDRESS", raising=False)
+
+    assert maps_tool.resolve_location("home") == "home"
+    assert maps_tool.saved_locations() == {}
+
+
+def test_travel_time_resolves_home_alias(monkeypatch):
+    monkeypatch.setenv("GOOGLE_MAPS_API_KEY", "test_key")
+    monkeypatch.setenv("JARVIS_HOME_ADDRESS", "1 Acacia Ave, Guildford")
+    get = MagicMock(
+        return_value=_response(
+            {
+                "status": "OK",
+                "origin_addresses": ["1 Acacia Ave, Guildford"],
+                "destination_addresses": ["Office"],
+                "rows": [
+                    {
+                        "elements": [
+                            {
+                                "status": "OK",
+                                "distance": {"text": "45 km"},
+                                "duration": {"text": "50 mins", "value": 3000},
+                            }
+                        ]
+                    }
+                ],
+            }
+        )
+    )
+    monkeypatch.setattr(maps_tool.requests, "get", get)
+
+    maps_tool.travel_time("home", "Office")
+
+    # The alias is expanded to the real address before hitting Google.
+    assert get.call_args.kwargs["params"]["origins"] == "1 Acacia Ave, Guildford"
+
+
 def test_past_departure_time_falls_back_to_now(monkeypatch):
     assert maps_tool._departure_epoch("2000-01-01T09:00:00+00:00") == "now"
 

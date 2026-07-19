@@ -227,20 +227,34 @@ TOOLS = [
     {
         "name": "travel_time",
         "description": (
-            "Estimate distance and travel time between two places. For driving it "
-            "accounts for traffic at the departure time, so you can tell Ben when to "
-            "leave for an event. Read-only. If you only know a rough place name, "
-            "resolve it with find_place first for a more accurate estimate."
+            "Estimate distance and travel time between two places. Pass more than one "
+            "mode to compare them (e.g. driving vs transit). For driving it accounts "
+            "for traffic at the departure time, so you can tell Ben when to leave for "
+            'an event. Read-only. You can use "home" or "work" for origin/'
+            "destination — they resolve to Ben's saved addresses. If you only know a "
+            "rough place name, resolve it with find_place first."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "origin": {"type": "string", "description": "Start address or place name."},
-                "destination": {"type": "string", "description": "End address or place name."},
-                "mode": {
+                "origin": {
                     "type": "string",
-                    "enum": ["driving", "walking", "bicycling", "transit"],
-                    "description": "Defaults to driving.",
+                    "description": 'Start address, place name, or "home"/"work".',
+                },
+                "destination": {
+                    "type": "string",
+                    "description": 'End address, place name, or "home"/"work".',
+                },
+                "modes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": ["driving", "walking", "bicycling", "transit"],
+                    },
+                    "description": (
+                        "Travel modes to estimate. Give several to compare (e.g. "
+                        '["driving", "transit"]). Defaults to ["driving"].'
+                    ),
                 },
                 "depart_at": {
                     "type": "string",
@@ -258,7 +272,9 @@ TOOLS = [
         "description": (
             "Plan a route to a place and attach it to an existing event: sets the "
             "event's location and adds a Google Maps directions link, the travel "
-            "time and a 'leave by' time to its description. Driving is traffic-aware. "
+            "time and a 'leave by' time to its description. Pass more than one mode "
+            "to save both (e.g. driving and transit) so Ben can choose. Driving is "
+            'traffic-aware. You can use "home"/"work" for origin/destination. '
             "Applies immediately if Jarvis created the event; otherwise queued for "
             "Ben's approval. Resolve a vague destination with find_place first if you "
             "want an exact address."
@@ -270,13 +286,19 @@ TOOLS = [
                 "calendar_id": {"type": "string"},
                 "origin": {
                     "type": "string",
-                    "description": "Where Ben sets off from (e.g. his home address).",
+                    "description": 'Where Ben sets off from (e.g. "home").',
                 },
                 "destination": {"type": "string", "description": "Where the event is."},
-                "mode": {
-                    "type": "string",
-                    "enum": ["driving", "walking", "bicycling", "transit"],
-                    "description": "Defaults to driving.",
+                "modes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": ["driving", "walking", "bicycling", "transit"],
+                    },
+                    "description": (
+                        "Travel modes to save on the event. Give several to compare "
+                        '(e.g. ["driving", "transit"]). Defaults to ["driving"].'
+                    ),
                 },
                 "depart_at": {
                     "type": "string",
@@ -343,6 +365,14 @@ _MODIFY_FIELDS = ("start", "end", "title", "location", "description", "attendees
 # Used to strip a stale block before re-writing, so re-planning replaces the
 # route rather than stacking duplicates.
 _ROUTE_MARKER = "🗺️ Route"
+
+
+def _modes(inp: dict) -> list[str]:
+    """Travel modes for a maps tool. Accepts a `modes` list (to compare, e.g.
+    driving vs transit) or a single `mode`, defaulting to driving."""
+    if inp.get("modes"):
+        return inp["modes"]
+    return [inp["mode"]] if inp.get("mode") else ["driving"]
 
 
 def _strip_route_block(body: str) -> str:
@@ -522,38 +552,54 @@ def execute_tool(name: str, inp: dict, state: dict, flags: dict) -> str:
         )
 
     if name == "travel_time":
-        mode = inp.get("mode", "driving")
-        trip = maps_tool.travel_time(
-            inp["origin"], inp["destination"], mode=mode, depart_at=inp.get("depart_at")
-        )
-        if not trip:
-            return f"No {mode} route found from '{inp['origin']}' to '{inp['destination']}'."
-        duration = trip["duration_in_traffic"] or trip["duration"]
-        traffic = " (in current traffic)" if trip["duration_in_traffic"] else ""
-        return (
-            f"{trip['origin']} → {trip['destination']} by {trip['mode']}: "
-            f"{duration}{traffic}, {trip['distance']}."
-        )
+        modes = _modes(inp)
+        results = [
+            (m, maps_tool.travel_time(inp["origin"], inp["destination"], m, inp.get("depart_at")))
+            for m in modes
+        ]
+        known = [t for _, t in results if t]
+        if not known:
+            return (
+                f"No route found from '{inp['origin']}' to '{inp['destination']}' "
+                f"by {', '.join(modes)}."
+            )
+        lines = [f"{known[0]['origin']} → {known[0]['destination']}:"]
+        for m, trip in results:
+            if not trip:
+                lines.append(f"- {m}: no route")
+                continue
+            duration = trip["duration_in_traffic"] or trip["duration"]
+            traffic = " in current traffic" if trip["duration_in_traffic"] else ""
+            lines.append(f"- {trip['mode']}: {duration}{traffic}, {trip['distance']}")
+        return "\n".join(lines)
 
     if name == "add_route_to_event":
         cal = inp["calendar_id"]
-        mode = inp.get("mode", "driving")
+        modes = _modes(inp)
         # Never trust the model about ownership — check the real event.
         event = calendar_tool.get_event(cal, inp["event_id"])
-        route = maps_tool.plan_route(
-            inp["origin"], inp["destination"], mode=mode, depart_at=inp.get("depart_at")
-        )
-        if not route:
-            return f"No {mode} route found from '{inp['origin']}' to '{inp['destination']}'."
-        block = _route_block(route, event.get("start"))
+        routes = [
+            maps_tool.plan_route(inp["origin"], inp["destination"], m, inp.get("depart_at"))
+            for m in modes
+        ]
+        found = [r for r in routes if r]
+        if not found:
+            return (
+                f"No route found from '{inp['origin']}' to '{inp['destination']}' "
+                f"by {', '.join(modes)}."
+            )
+        missing = [m for m, r in zip(modes, routes, strict=True) if not r]
+        note = f" (no {', '.join(missing)} route)" if missing else ""
+        blocks = "\n\n".join(_route_block(r, event.get("start")) for r in found)
         body = _strip_route_block(event.get("description") or "")
-        new_description = f"{body}\n\n{block}".strip() if body else block
-        location = route["destination"]
+        new_description = f"{body}\n\n{blocks}".strip() if body else blocks
+        location = found[0]["destination"]
         if event["jarvis"]:
             calendar_tool.modify_event(
                 cal, inp["event_id"], location=location, description=new_description
             )
-            return f"Added the route to '{event['summary']}'. {block}"
+            summary = "route" if len(found) == 1 else f"{len(found)} routes"
+            return f"Added the {summary} to '{event['summary']}'.{note}\n\n{blocks}"
         label = f"Add route to '{event['summary']}' ({location})"
         pending.append(
             {
@@ -570,7 +616,7 @@ def execute_tool(name: str, inp: dict, state: dict, flags: dict) -> str:
                 "attendees": None,
             }
         )
-        return f"Queued for Ben's approval: {label}. Not yet applied."
+        return f"Queued for Ben's approval: {label}. Not yet applied.{note}"
 
     if name == "cancel_approval":
         aid = inp["approval_id"]

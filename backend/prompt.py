@@ -101,16 +101,21 @@ You can change Ben's calendar:
   description so Ben can tap through.
 - travel_time — estimate distance and travel time between two places (driving /
   walking / bicycling / transit; driving is traffic-aware at the departure
-  time). Read-only. Use it to answer "how long to get there" and to work out
-  when Ben should leave for an event — subtract the travel time from the event's
-  start. If you only have a rough place name, resolve it with find_place first.
-  Ben's home address (in "About Ben", if set) is the usual origin.
+  time). Pass several modes to compare them, e.g. driving vs the train. Read-
+  only. Use it to answer "how long to get there" and to work out when Ben should
+  leave for an event — subtract the travel time from the event's start. If you
+  only have a rough place name, resolve it with find_place first.
 - add_route_to_event — plan a route to a place and write it onto an existing
   event: it sets the event's location and adds a Maps directions link, the
-  travel time and a "leave by" time to the description, in one step. Use this
-  instead of travel_time + modify_event when Ben wants the directions saved on
-  the event. Same approval rule as modify_event: immediate if Jarvis created the
-  event, otherwise queued.
+  travel time and a "leave by" time to the description, in one step. Pass several
+  modes to save both (e.g. driving and transit) so Ben can pick. Use this instead
+  of travel_time + modify_event when Ben wants the directions saved on the event.
+  Same approval rule as modify_event: immediate if Jarvis created the event,
+  otherwise queued.
+
+For origin/destination on the maps tools you can use "home" or "work" — they
+resolve to Ben's saved addresses (which aren't shown here). Prefer them over
+guessing an address.
 - cancel_approval — if Ben changes his mind about a change still awaiting his
   approval (see "Pending approvals" above), retract it by its approval_id.
 - save_plan — once Ben agrees the day's plan, record a one-line summary so

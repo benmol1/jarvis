@@ -27,6 +27,20 @@ def _api_key() -> str:
     return key
 
 
+def saved_locations() -> dict[str, str]:
+    """Ben's named places (home, work), read from the environment. Kept out of
+    the system prompt on purpose — the addresses only surface when a map tool
+    resolves an alias below, not in every turn's context."""
+    env = {"home": "JARVIS_HOME_ADDRESS", "work": "JARVIS_WORK_ADDRESS"}
+    return {alias: os.environ[var] for alias, var in env.items() if os.environ.get(var)}
+
+
+def resolve_location(place: str) -> str:
+    """Expand a saved alias ("home"/"work") to Ben's real address; pass anything
+    else through unchanged. This is where a stored address enters a request."""
+    return saved_locations().get(place.strip().lower(), place)
+
+
 def _maps_url(query: str, place_id: str | None) -> str:
     """A shareable Google Maps deep link. Pinning query_place_id makes it resolve
     to the exact place rather than a fresh search, so it survives in an event."""
@@ -42,6 +56,7 @@ def find_place(query: str) -> dict:
 
     Returns {} when nothing matches, so the caller can say so rather than guess.
     """
+    query = resolve_location(query)
     resp = requests.get(
         f"{MAPS_API}/maps/api/place/textsearch/json",
         params={"query": query, "key": _api_key()},
@@ -103,6 +118,8 @@ def travel_time(
     if mode not in VALID_MODES:
         raise MapsError(f"mode must be one of {', '.join(VALID_MODES)}, got {mode!r}")
 
+    origin = resolve_location(origin)
+    destination = resolve_location(destination)
     params = {
         "origins": origin,
         "destinations": destination,
