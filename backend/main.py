@@ -1,3 +1,4 @@
+import ipaddress
 import json
 import logging
 import os
@@ -6,7 +7,7 @@ from uuid import uuid4
 
 from anthropic import Anthropic
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -40,10 +41,42 @@ def fetch_context(fetch, source: str) -> list[dict]:
         return []
 
 
+# Tailscale's carrier-grade-NAT ranges — not RFC1918, so Python's
+# ipaddress.is_private doesn't flag them, but they're exactly how a tailnet
+# peer's source IP looks from here.
+_TAILSCALE_RANGES = (
+    ipaddress.ip_network("100.64.0.0/10"),
+    ipaddress.ip_network("fd7a:115c:a1e0::/48"),
+)
+
+
+def classify_connection(client_host: str | None) -> str:
+    """Classify how a request reached us from its source IP: over Ben's home
+    LAN, over the Tailscale tailnet, or something else (shouldn't normally
+    happen — nothing is port-forwarded to the internet)."""
+    if not client_host:
+        return "unknown"
+    try:
+        addr = ipaddress.ip_address(client_host)
+    except ValueError:
+        return "unknown"
+    if any(addr in net for net in _TAILSCALE_RANGES):
+        return "tailnet"
+    if addr.is_private:
+        return "local"
+    return "unknown"
+
+
 @app.get("/health")
-def health():
-    """Health check endpoint for Docker/Kubernetes."""
-    return {"status": "healthy", "service": "jarvis-backend"}
+def health(request: Request):
+    """Health check endpoint for Docker/Kubernetes, and the connection-status
+    read the iOS/web headers poll to show local vs tailnet vs offline."""
+    client_host = request.client.host if request.client else None
+    return {
+        "status": "healthy",
+        "service": "jarvis-backend",
+        "connection": classify_connection(client_host),
+    }
 
 
 class Turn(BaseModel):
