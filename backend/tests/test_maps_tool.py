@@ -191,6 +191,98 @@ def test_travel_time_walking_omits_departure_time_by_default(monkeypatch):
     assert "departure_time" not in get.call_args.kwargs["params"]
 
 
+def test_travel_time_exposes_numeric_seconds(monkeypatch):
+    monkeypatch.setenv("GOOGLE_MAPS_API_KEY", "test_key")
+    monkeypatch.setattr(
+        maps_tool.requests,
+        "get",
+        MagicMock(
+            return_value=_response(
+                {
+                    "status": "OK",
+                    "origin_addresses": ["A"],
+                    "destination_addresses": ["B"],
+                    "rows": [
+                        {
+                            "elements": [
+                                {
+                                    "status": "OK",
+                                    "distance": {"text": "45 km", "value": 45000},
+                                    "duration": {"text": "50 mins", "value": 3000},
+                                    "duration_in_traffic": {"text": "1 hour", "value": 3600},
+                                }
+                            ]
+                        }
+                    ],
+                }
+            )
+        ),
+    )
+
+    trip = maps_tool.travel_time("A", "B")
+
+    # Prefers the traffic-aware seconds so a "leave by" calc reflects traffic.
+    assert trip["duration_seconds"] == 3600
+
+
+def test_plan_route_adds_directions_link(monkeypatch):
+    monkeypatch.setenv("GOOGLE_MAPS_API_KEY", "test_key")
+    monkeypatch.setattr(
+        maps_tool.requests,
+        "get",
+        MagicMock(
+            return_value=_response(
+                {
+                    "status": "OK",
+                    "origin_addresses": ["Home, Guildford"],
+                    "destination_addresses": ["Office, London"],
+                    "rows": [
+                        {
+                            "elements": [
+                                {
+                                    "status": "OK",
+                                    "distance": {"text": "45 km", "value": 45000},
+                                    "duration": {"text": "50 mins", "value": 3000},
+                                    "duration_in_traffic": {"text": "1 hour", "value": 3600},
+                                }
+                            ]
+                        }
+                    ],
+                }
+            )
+        ),
+    )
+
+    route = maps_tool.plan_route("Home", "Office")
+
+    assert route["duration_in_traffic"] == "1 hour"
+    # Deep link is built from the resolved addresses, not the raw query strings.
+    assert route["directions_url"].startswith("https://www.google.com/maps/dir/?")
+    assert "origin=Home%2C+Guildford" in route["directions_url"]
+    assert "destination=Office%2C+London" in route["directions_url"]
+    assert "travelmode=driving" in route["directions_url"]
+
+
+def test_plan_route_returns_empty_when_no_route(monkeypatch):
+    monkeypatch.setenv("GOOGLE_MAPS_API_KEY", "test_key")
+    monkeypatch.setattr(
+        maps_tool.requests,
+        "get",
+        MagicMock(
+            return_value=_response(
+                {
+                    "status": "OK",
+                    "origin_addresses": ["A"],
+                    "destination_addresses": ["B"],
+                    "rows": [{"elements": [{"status": "ZERO_RESULTS"}]}],
+                }
+            )
+        ),
+    )
+
+    assert maps_tool.plan_route("A", "B", mode="transit") == {}
+
+
 def test_past_departure_time_falls_back_to_now(monkeypatch):
     assert maps_tool._departure_epoch("2000-01-01T09:00:00+00:00") == "now"
 

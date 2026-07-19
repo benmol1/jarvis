@@ -254,6 +254,42 @@ TOOLS = [
         },
     },
     {
+        "name": "add_route_to_event",
+        "description": (
+            "Plan a route to a place and attach it to an existing event: sets the "
+            "event's location and adds a Google Maps directions link, the travel "
+            "time and a 'leave by' time to its description. Driving is traffic-aware. "
+            "Applies immediately if Jarvis created the event; otherwise queued for "
+            "Ben's approval. Resolve a vague destination with find_place first if you "
+            "want an exact address."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "event_id": {"type": "string"},
+                "calendar_id": {"type": "string"},
+                "origin": {
+                    "type": "string",
+                    "description": "Where Ben sets off from (e.g. his home address).",
+                },
+                "destination": {"type": "string", "description": "Where the event is."},
+                "mode": {
+                    "type": "string",
+                    "enum": ["driving", "walking", "bicycling", "transit"],
+                    "description": "Defaults to driving.",
+                },
+                "depart_at": {
+                    "type": "string",
+                    "description": (
+                        "ISO 8601. Pass the event's start for a traffic-aware estimate "
+                        "around that time; omit to base it on leaving now."
+                    ),
+                },
+            },
+            "required": ["event_id", "calendar_id", "origin", "destination"],
+        },
+    },
+    {
         "name": "cancel_approval",
         "description": (
             "Retract a change still awaiting Ben's approval, by its approval_id "
@@ -302,6 +338,44 @@ def _far_out(start: str) -> bool:
 # approval payload. Kept in one place so the tool, the queue item and /apply
 # stay in sync.
 _MODIFY_FIELDS = ("start", "end", "title", "location", "description", "attendees")
+
+# Prefix of the route block add_route_to_event writes into an event description.
+# Used to strip a stale block before re-writing, so re-planning replaces the
+# route rather than stacking duplicates.
+_ROUTE_MARKER = "🗺️ Route"
+
+
+def _strip_route_block(body: str) -> str:
+    """Drop a previously-added route block (it's always appended last) so a
+    re-plan replaces it instead of piling on."""
+    idx = body.find(_ROUTE_MARKER)
+    return body[:idx].strip() if idx != -1 else body.strip()
+
+
+def _leave_by(start: str | None, duration_seconds: int | None) -> str | None:
+    """HH:MM Ben should leave to reach a timed event on time, when both the
+    start and a travel duration are known. All-day events (date only) get none."""
+    if not start or "T" not in start or not duration_seconds:
+        return None
+    try:
+        start_dt = datetime.fromisoformat(start)
+    except ValueError:
+        return None
+    return (start_dt - timedelta(seconds=duration_seconds)).strftime("%H:%M")
+
+
+def _route_block(route: dict, start: str | None) -> str:
+    """The description snippet describing a planned route: travel time (in
+    traffic where known), distance, a leave-by time, and a directions link."""
+    duration = route["duration_in_traffic"] or route["duration"]
+    traffic = " in traffic" if route["duration_in_traffic"] else ""
+    leave = _leave_by(start, route.get("duration_seconds"))
+    leave_txt = f" Leave by {leave}." if leave else ""
+    return (
+        f"{_ROUTE_MARKER} to {route['destination']}: {duration}{traffic} "
+        f"by {route['mode']} ({route['distance']}).{leave_txt}\n"
+        f"Directions: {route['directions_url']}"
+    )
 
 
 def execute_tool(name: str, inp: dict, state: dict, flags: dict) -> str:
@@ -460,6 +534,43 @@ def execute_tool(name: str, inp: dict, state: dict, flags: dict) -> str:
             f"{trip['origin']} → {trip['destination']} by {trip['mode']}: "
             f"{duration}{traffic}, {trip['distance']}."
         )
+
+    if name == "add_route_to_event":
+        cal = inp["calendar_id"]
+        mode = inp.get("mode", "driving")
+        # Never trust the model about ownership — check the real event.
+        event = calendar_tool.get_event(cal, inp["event_id"])
+        route = maps_tool.plan_route(
+            inp["origin"], inp["destination"], mode=mode, depart_at=inp.get("depart_at")
+        )
+        if not route:
+            return f"No {mode} route found from '{inp['origin']}' to '{inp['destination']}'."
+        block = _route_block(route, event.get("start"))
+        body = _strip_route_block(event.get("description") or "")
+        new_description = f"{body}\n\n{block}".strip() if body else block
+        location = route["destination"]
+        if event["jarvis"]:
+            calendar_tool.modify_event(
+                cal, inp["event_id"], location=location, description=new_description
+            )
+            return f"Added the route to '{event['summary']}'. {block}"
+        label = f"Add route to '{event['summary']}' ({location})"
+        pending.append(
+            {
+                "id": uuid4().hex,
+                "action": "modify_event",
+                "calendar_id": cal,
+                "event_id": inp["event_id"],
+                "label": label,
+                "location": location,
+                "description": new_description,
+                "start": None,
+                "end": None,
+                "title": None,
+                "attendees": None,
+            }
+        )
+        return f"Queued for Ben's approval: {label}. Not yet applied."
 
     if name == "cancel_approval":
         aid = inp["approval_id"]

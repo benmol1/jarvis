@@ -129,6 +129,11 @@ def travel_time(
         return {}  # e.g. ZERO_RESULTS / NOT_FOUND — no usable route
 
     in_traffic = element.get("duration_in_traffic", {}).get("text")
+    # Numeric seconds (traffic-aware when available) so callers can do maths on
+    # it — e.g. subtract from an event start to get a "leave by" time.
+    seconds = element.get("duration_in_traffic", {}).get("value") or element["duration"].get(
+        "value"
+    )
     return {
         "origin": data["origin_addresses"][0],
         "destination": data["destination_addresses"][0],
@@ -137,4 +142,33 @@ def travel_time(
         "duration": element["duration"]["text"],
         # Present only for driving with a departure_time; None otherwise.
         "duration_in_traffic": in_traffic,
+        "duration_seconds": seconds,
     }
+
+
+def _directions_url(origin: str, destination: str, mode: str = "driving") -> str:
+    """A Google Maps directions deep link that opens turn-by-turn navigation
+    for the route. Just a URL — needs no API call or key."""
+    params = {"api": 1, "origin": origin, "destination": destination, "travelmode": mode}
+    return f"https://www.google.com/maps/dir/?{urlencode(params)}"
+
+
+def plan_route(
+    origin: str,
+    destination: str,
+    mode: str = "driving",
+    depart_at: str | None = None,
+) -> dict:
+    """Plan a route between two places: the travel_time estimate plus a Maps
+    directions link Ben can tap for navigation. Built on the same Distance
+    Matrix call as travel_time, so it needs no extra Google API.
+
+    Returns {} when there's no route.
+    """
+    trip = travel_time(origin, destination, mode=mode, depart_at=depart_at)
+    if not trip:
+        return {}
+    # Link off the resolved addresses so it points at the exact places Google
+    # matched, not the fuzzy strings Ben typed.
+    trip["directions_url"] = _directions_url(trip["origin"], trip["destination"], mode)
+    return trip
