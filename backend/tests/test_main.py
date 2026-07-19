@@ -429,40 +429,12 @@ def test_travel_time_reports_no_route(monkeypatch):
 
     result = main.execute_tool(
         "travel_time",
-        {"origin": "A", "destination": "B", "modes": ["transit"]},
+        {"origin": "A", "destination": "B", "mode": "transit"},
         _state(),
         {"draft": False},
     )
 
-    assert "No route found" in result and "transit" in result
-
-
-def test_travel_time_compares_multiple_modes(monkeypatch):
-    def fake(o, d, mode="driving", depart_at=None):
-        if mode == "driving":
-            return {
-                "origin": "Home",
-                "destination": "Office",
-                "mode": "driving",
-                "distance": "45 km",
-                "duration": "50 mins",
-                "duration_in_traffic": "1 hour 10 mins",
-                "duration_seconds": 4200,
-            }
-        return {}  # no transit route
-
-    monkeypatch.setattr(main.maps_tool, "travel_time", fake)
-
-    result = main.execute_tool(
-        "travel_time",
-        {"origin": "Home", "destination": "Office", "modes": ["driving", "transit"]},
-        _state(),
-        {"draft": False},
-    )
-
-    assert "Home → Office" in result
-    assert "driving: 1 hour 10 mins in current traffic, 45 km" in result
-    assert "transit: no route" in result  # partial failure still reported
+    assert "No transit route" in result
 
 
 def _route(**over):
@@ -505,6 +477,7 @@ def test_add_route_to_jarvis_event_applies_and_writes_directions(monkeypatch):
             "calendar_id": "primary",
             "origin": "home",
             "destination": "office",
+            "mode": "driving",
         },
         _state(),
         {"draft": False},
@@ -516,7 +489,7 @@ def test_add_route_to_jarvis_event_applies_and_writes_directions(monkeypatch):
     assert kw["description"].startswith("Bring the deck.")
     assert "https://maps.example/dir" in kw["description"]
     assert "Leave by 07:50" in kw["description"]  # 09:00 minus 70 mins
-    assert "Added the route" in result
+    assert "Added the driving route" in result
 
 
 def test_add_route_replaces_stale_route_block(monkeypatch):
@@ -599,16 +572,18 @@ def test_add_route_reports_no_route(monkeypatch):
             "calendar_id": "primary",
             "origin": "A",
             "destination": "B",
-            "modes": ["transit"],
+            "mode": "transit",
         },
         _state(),
         {"draft": False},
     )
 
-    assert "No route found" in result and "transit" in result
+    assert "No transit route" in result
 
 
-def test_add_route_saves_both_modes(monkeypatch):
+def test_add_route_saves_the_chosen_mode(monkeypatch):
+    """Route planning takes one mode as a parameter — transit here writes a
+    single transit block, not a driving+transit comparison."""
     monkeypatch.setattr(
         main.calendar_tool,
         "get_event",
@@ -619,10 +594,10 @@ def test_add_route_saves_both_modes(monkeypatch):
             "jarvis": True,
         },
     )
+    captured = {}
 
     def fake_plan(o, d, mode="driving", depart_at=None):
-        if mode == "driving":
-            return _route(mode="driving", directions_url="https://maps.example/drive")
+        captured["mode"] = mode
         return _route(
             mode="transit",
             duration="1 hour 30 mins",
@@ -642,17 +617,18 @@ def test_add_route_saves_both_modes(monkeypatch):
             "calendar_id": "primary",
             "origin": "home",
             "destination": "office",
-            "modes": ["driving", "transit"],
+            "mode": "transit",
         },
         _state(),
         {"draft": False},
     )
 
+    assert captured["mode"] == "transit"  # the parameter is honoured
     desc = modified[0]["description"]
-    assert desc.count("🗺️ Route") == 2  # one block per mode
-    assert "https://maps.example/drive" in desc and "https://maps.example/train" in desc
-    assert "by driving" in desc and "by transit" in desc
-    assert "2 routes" in result
+    assert desc.count("🗺️ Route") == 1  # a single block for the chosen mode
+    assert "https://maps.example/train" in desc
+    assert "by transit" in desc
+    assert "Added the transit route" in result
 
 
 def test_cancel_approval_removes_queued_item():
