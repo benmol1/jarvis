@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import calendar_tool
+import maps_tool
 from calendar_tool import get_upcoming_events
 from profile_store import load_profile
 from prompt import build_system_prompt
@@ -207,6 +208,52 @@ TOOLS = [
         },
     },
     {
+        "name": "find_place",
+        "description": (
+            'Look up a place from a fuzzy name or address (e.g. "Nando\'s Guildford", '
+            '"Kings Cross station") and get its clean postal address and a Google '
+            "Maps link. Read-only. Use this to turn a vague place into the location "
+            "you then pass to create_event/modify_event, and put the maps_url in the "
+            "event description so Ben can tap through."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Place name or address to resolve."},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "travel_time",
+        "description": (
+            "Estimate distance and travel time between two places. For driving it "
+            "accounts for traffic at the departure time, so you can tell Ben when to "
+            "leave for an event. Read-only. If you only know a rough place name, "
+            "resolve it with find_place first for a more accurate estimate."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "origin": {"type": "string", "description": "Start address or place name."},
+                "destination": {"type": "string", "description": "End address or place name."},
+                "mode": {
+                    "type": "string",
+                    "enum": ["driving", "walking", "bicycling", "transit"],
+                    "description": "Defaults to driving.",
+                },
+                "depart_at": {
+                    "type": "string",
+                    "description": (
+                        "ISO 8601 departure time for a traffic-aware driving estimate "
+                        "(e.g. before an event). Omit to leave now."
+                    ),
+                },
+            },
+            "required": ["origin", "destination"],
+        },
+    },
+    {
         "name": "cancel_approval",
         "description": (
             "Retract a change still awaiting Ben's approval, by its approval_id "
@@ -389,6 +436,30 @@ def execute_tool(name: str, inp: dict, state: dict, flags: dict) -> str:
     if name == "respond_to_event":
         calendar_tool.respond_to_event(inp["calendar_id"], inp["event_id"], inp["response"])
         return f"Responded '{inp['response']}' to the event."
+
+    if name == "find_place":
+        place = maps_tool.find_place(inp["query"])
+        if not place:
+            return f"No place found matching '{inp['query']}'."
+        return (
+            f"{place['location']}\n"
+            f"location (for event): {place['location']}\n"
+            f"maps link: {place['maps_url']}"
+        )
+
+    if name == "travel_time":
+        mode = inp.get("mode", "driving")
+        trip = maps_tool.travel_time(
+            inp["origin"], inp["destination"], mode=mode, depart_at=inp.get("depart_at")
+        )
+        if not trip:
+            return f"No {mode} route found from '{inp['origin']}' to '{inp['destination']}'."
+        duration = trip["duration_in_traffic"] or trip["duration"]
+        traffic = " (in current traffic)" if trip["duration_in_traffic"] else ""
+        return (
+            f"{trip['origin']} → {trip['destination']} by {trip['mode']}: "
+            f"{duration}{traffic}, {trip['distance']}."
+        )
 
     if name == "cancel_approval":
         aid = inp["approval_id"]

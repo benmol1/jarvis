@@ -371,6 +371,72 @@ def test_respond_to_event_applies_immediately(monkeypatch):
     assert calls == [("primary", "x", "accepted")]
 
 
+def test_find_place_returns_location_and_maps_link(monkeypatch):
+    monkeypatch.setattr(
+        main.maps_tool,
+        "find_place",
+        lambda q: {
+            "name": "Nando's",
+            "address": "2 High St, Guildford",
+            "location": "Nando's, 2 High St, Guildford",
+            "place_id": "pid",
+            "maps_url": "https://maps.example/pid",
+        },
+    )
+
+    result = main.execute_tool(
+        "find_place", {"query": "nandos guildford"}, _state(), {"draft": False}
+    )
+
+    assert "Nando's, 2 High St, Guildford" in result
+    assert "https://maps.example/pid" in result
+
+
+def test_find_place_reports_no_match(monkeypatch):
+    monkeypatch.setattr(main.maps_tool, "find_place", lambda q: {})
+
+    result = main.execute_tool("find_place", {"query": "zzz"}, _state(), {"draft": False})
+
+    assert "No place found" in result
+
+
+def test_travel_time_prefers_traffic_duration(monkeypatch):
+    monkeypatch.setattr(
+        main.maps_tool,
+        "travel_time",
+        lambda o, d, mode="driving", depart_at=None: {
+            "origin": "Home",
+            "destination": "Office",
+            "mode": "driving",
+            "distance": "45 km",
+            "duration": "50 mins",
+            "duration_in_traffic": "1 hour 10 mins",
+        },
+    )
+
+    result = main.execute_tool(
+        "travel_time", {"origin": "Home", "destination": "Office"}, _state(), {"draft": False}
+    )
+
+    assert "1 hour 10 mins" in result and "in current traffic" in result
+    assert "45 km" in result
+
+
+def test_travel_time_reports_no_route(monkeypatch):
+    monkeypatch.setattr(
+        main.maps_tool, "travel_time", lambda o, d, mode="driving", depart_at=None: {}
+    )
+
+    result = main.execute_tool(
+        "travel_time",
+        {"origin": "A", "destination": "B", "mode": "transit"},
+        _state(),
+        {"draft": False},
+    )
+
+    assert "No transit route" in result
+
+
 def test_cancel_approval_removes_queued_item():
     state = {"pending_approvals": [{"id": "abc", "label": "Delete 'Dentist'"}]}
 

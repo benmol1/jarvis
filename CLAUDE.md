@@ -48,6 +48,7 @@ See `ios/README.md` for build instructions (requires Xcode on macOS).
   - `state.py` — Rolling state persistence (JSON)
   - `prompt.py` — System prompt builder
   - `calendar_tool.py` — Google Calendar integration (read-only for now)
+  - `maps_tool.py` — Google Maps integration (travel times + place lookup, API-key based)
   - `trello_tool.py` — Trello API integration
   - `Dockerfile` — Multi-stage build for ARM compatibility
   - `docker-compose.yml` — Service orchestration with volumes and health checks
