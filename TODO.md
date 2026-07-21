@@ -182,7 +182,7 @@ else's** event is queued for Ben's approval in the app.
     clean postal address + Maps link, and `add_route_to_event` sets the event
     location outright (see "Google Maps integration")
 - [x] iOS: mirror the approval/copy view (done in Phase 2.5 — iOS Interface)
-- [ ] Deploy and verify on the Pi (tested locally only so far)
+- [x] Deploy and verify on the Pi (tested locally only so far)
 
 ## Google Maps integration ⏳ IN PROGRESS
 
@@ -294,6 +294,7 @@ The 10-minute ritual feel.
 - [ ] Text-to-speech via `AVSpeechSynthesizer` (spoken replies)
 - [ ] Conversation UI works hands-free (speak → hear response)
 - [ ] Daily morning reminder (local notification)
+- [ ] Tighter integration with Wispr Flow - it's a bit annoying having to shuffle left/right between apps
 
 ## Phase 4 — Desktop web front-end ⏳ IN PROGRESS
 
@@ -321,6 +322,7 @@ Not building: an in-app calendar/Trello view. Jarvis's writes already show up in
 
 ## Later — earn-their-place TODOs
 
+- [ ] Give JARVIS an email address so I can forward tasks to him
 - [ ] Realtime cloud voice API (nicer, customisable voice) instead of Apple TTS
 - [ ] Work calendar via Microsoft Graph / Outlook (security permitting)
 - [ ] Gmail drafts instead of copy/paste messages
