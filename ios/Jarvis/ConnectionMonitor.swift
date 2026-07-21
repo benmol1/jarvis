@@ -15,11 +15,14 @@ enum ConnectionStatus: Equatable {
         }
     }
 
+    /// Two lines rather than "Online: Local" inline — the header pill is
+    /// narrow, and the combined string was pushing into the JARVIS wordmark
+    /// on-device.
     var label: String {
         switch self {
-        case .local: return "Online: Local"
-        case .tailnet: return "Online: Tailnet"
-        case .unknown: return "Online: Other"
+        case .local: return "Online: \nLocal"
+        case .tailnet: return "Online: \nTailnet"
+        case .unknown: return "Online: \nOther"
         case .offline: return "OFFLINE"
         }
     }

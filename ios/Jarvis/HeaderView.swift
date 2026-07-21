@@ -48,6 +48,8 @@ struct HeaderView: View {
                 Text(connection.label)
                     .font(JarvisFont.data(9, weight: .medium))
                     .tracking(2)
+                    .multilineTextAlignment(.leading)
+                    .lineSpacing(1)
             }
             .foregroundStyle(connection == .offline ? Color.jarvisAlert : Color.jarvisCyan)
         }
