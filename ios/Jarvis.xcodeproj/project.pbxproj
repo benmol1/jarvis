@@ -13,6 +13,7 @@
 		665DA26755D3450AF1034F94 /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE69DE59E64B6F50493044DB /* MessageBubble.swift */; };
 		6D8D949EDB0469EB6835E1D6 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C293AAB6EC3E528B1043FF9 /* ChatViewModel.swift */; };
 		7197AD7A964D6D7E7E073B0B /* HeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AEC93C05A9272F4D6BA7B3B /* HeaderView.swift */; };
+		1D888E37CD5B4C3E93E4121D /* ConnectionMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25787121D4BC47CE81017A43 /* ConnectionMonitor.swift */; };
 		787AA2382FE1FA0807966E26 /* CalculatingRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = D128F0818E54FBD7E317C566 /* CalculatingRing.swift */; };
 		82C167427A387D38FA5095A1 /* JetBrainsMono-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2E448D818C06CC329E77DF93 /* JetBrainsMono-Regular.ttf */; };
 		909D853529D3DDD4A03E737B /* JetBrainsMono-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2A8AF09AE1E2FADA19CEE6DC /* JetBrainsMono-Medium.ttf */; };
@@ -28,6 +29,7 @@
 /* Begin PBXFileReference section */
 		1C293AAB6EC3E528B1043FF9 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
 		2A8AF09AE1E2FADA19CEE6DC /* JetBrainsMono-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "JetBrainsMono-Medium.ttf"; sourceTree = "<group>"; };
+		25787121D4BC47CE81017A43 /* ConnectionMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionMonitor.swift; sourceTree = "<group>"; };
 		2E448D818C06CC329E77DF93 /* JetBrainsMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "JetBrainsMono-Regular.ttf"; sourceTree = "<group>"; };
 		370DE88E6F21C63154413B9D /* ApprovalsBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApprovalsBubble.swift; sourceTree = "<group>"; };
 		48499CCE647006FFF24CB568 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -84,6 +86,7 @@
 				B9C509A7599D4F667659CFDE /* ChatModels.swift */,
 				1C293AAB6EC3E528B1043FF9 /* ChatViewModel.swift */,
 				97CBAE1B4A1C5BD8FF678BC0 /* ComposerView.swift */,
+				25787121D4BC47CE81017A43 /* ConnectionMonitor.swift */,
 				48499CCE647006FFF24CB568 /* ContentView.swift */,
 				4AEC93C05A9272F4D6BA7B3B /* HeaderView.swift */,
 				D758DDA5F42A49B6CB275DED /* Info.plist */,
@@ -176,6 +179,7 @@
 				350DEB3847E67A2C3768D960 /* ChatModels.swift in Sources */,
 				6D8D949EDB0469EB6835E1D6 /* ChatViewModel.swift in Sources */,
 				D51EDCAAF9B332CEB2D130F5 /* ComposerView.swift in Sources */,
+				1D888E37CD5B4C3E93E4121D /* ConnectionMonitor.swift in Sources */,
 				A929380B18BE429949DC1F84 /* ContentView.swift in Sources */,
 				7197AD7A964D6D7E7E073B0B /* HeaderView.swift in Sources */,
 				5E25349CC3262A18DE554A01 /* JarvisApp.swift in Sources */,

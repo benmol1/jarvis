@@ -128,6 +128,47 @@ def test_chat_forwards_history_for_session_memory():
     ]
 
 
+# --- /health connection classification -----------------------------------
+
+
+@pytest.mark.parametrize(
+    "client_host,expected",
+    [
+        ("192.168.1.42", "local"),
+        ("10.0.0.5", "local"),
+        ("172.16.0.5", "local"),
+        ("127.0.0.1", "local"),
+        ("100.64.0.1", "tailnet"),
+        ("100.100.100.100", "tailnet"),
+        ("fd7a:115c:a1e0:ab12::1", "tailnet"),
+        ("8.8.8.8", "unknown"),
+        (None, "unknown"),
+        ("not-an-ip", "unknown"),
+    ],
+)
+def test_classify_connection(client_host, expected):
+    assert main.classify_connection(client_host) == expected
+
+
+def test_health_reports_connection_from_request_ip():
+    local_client = TestClient(main.app, client=("192.168.1.42", 12345))
+    res = local_client.get("/health")
+
+    assert res.status_code == 200
+    assert res.json() == {
+        "status": "healthy",
+        "service": "jarvis-backend",
+        "connection": "local",
+    }
+
+
+def test_health_reports_tailnet_connection():
+    tailnet_client = TestClient(main.app, client=("100.101.102.103", 12345))
+    res = tailnet_client.get("/health")
+
+    assert res.json()["connection"] == "tailnet"
+
+
 def test_chat_survives_a_failing_integration(monkeypatch):
     """An expired calendar token must cost us the calendar, not the chat."""
     main.client.messages.create = MagicMock(return_value=_text_response("still here"))

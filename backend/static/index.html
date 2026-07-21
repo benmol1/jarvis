@@ -107,6 +107,14 @@
     .status { margin-left: auto; display: flex; align-items: center; gap: 8px; font-family: var(--font-data); font-size: .62rem; letter-spacing: .2em; text-transform: uppercase; color: var(--cyan); }
     .status .led { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); box-shadow: var(--glow-cyan); animation: breathe 2.4s ease-in-out infinite; }
     @keyframes breathe { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
+    /* Offline: solid alert-red dot, no breathing — a state that needs attention. */
+    .status[data-conn="offline"] { color: var(--alert); }
+    .status[data-conn="offline"] .led {
+      background: var(--alert);
+      box-shadow: 0 0 6px rgba(255,93,74,.55), 0 0 22px rgba(255,93,74,.22);
+      animation: none;
+      opacity: 1;
+    }
 
     /* ===== Chat log ===== */
     #log {
@@ -220,7 +228,7 @@
         <h1>JARVIS</h1>
         <span class="sub">Interface // Mark I</span>
       </div>
-      <div class="status"><span class="led"></span>Online</div>
+      <div class="status" id="status" data-conn="offline"><span class="led"></span><span id="statusLabel">Offline</span></div>
     </header>
 
     <div id="log"></div>
@@ -236,6 +244,37 @@
     const form = document.getElementById("form");
     const input = document.getElementById("input");
     const headerMark = document.getElementById("headerMark");
+    const statusEl = document.getElementById("status");
+    const statusLabel = document.getElementById("statusLabel");
+
+    // Polls /health to show whether we're reaching the Pi over Ben's home
+    // LAN, over the tailnet, or not at all — /health classifies the caller's
+    // source IP server-side, so the page just displays whatever it says.
+    const CONNECTION_LABELS = { local: "Online: Local", tailnet: "Online: Tailnet", 
+      unknown: "Online: Other", offline: "Offline" };
+
+    function setConnection(conn) {
+      statusEl.dataset.conn = conn;
+      statusLabel.textContent = CONNECTION_LABELS[conn] || CONNECTION_LABELS.unknown;
+    }
+
+    async function checkHealth() {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      try {
+        const res = await fetch("/health", { cache: "no-store", signal: controller.signal });
+        if (!res.ok) throw new Error("bad status");
+        const data = await res.json();
+        setConnection(data.connection || "unknown");
+      } catch {
+        setConnection("offline");
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    checkHealth();
+    setInterval(checkHealth, 15000);
 
     // The three rings the header mark and the bubble's calculating indicator
     // both draw from — "thinking" while Jarvis is reasoning, "processing"

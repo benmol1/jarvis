@@ -1,7 +1,8 @@
 import Foundation
 
-// ponytail: hardcoded tailnet URL, swap for a settings field if the Pi's hostname changes often
-private let backendBaseURL = URL(string: "http://raspberry-pi:8000")!
+// ponytail: hardcoded tailnet URL, swap for a settings field if the Pi's hostname changes often.
+// Not private — ConnectionMonitor polls the same backend for /health.
+let backendBaseURL = URL(string: "http://raspberry-pi:8000")!
 
 /// Mirrors the two calculating tiers a message bubble can show, so the
 /// header mark can display the same animation the conversation is
