@@ -12,11 +12,11 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import calendar_tool
+import trello_tool
 from calendar_tool import get_upcoming_events
 from profile_store import load_profile
 from prompt import build_system_prompt
 from state import load_state, save_state
-from trello_tool import get_cards
 
 # Load backend/.env before reading os.environ below. No-op in Docker, which
 # injects vars via compose's env_file instead.
@@ -237,6 +237,74 @@ TOOLS = [
         ),
         "input_schema": {"type": "object", "properties": {}},
     },
+    {
+        "name": "list_trello_cards",
+        "description": ("Fetch cards from Ben's Trello board. Excludes the Done list by default."),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "include_done": {
+                    "type": "boolean",
+                    "description": "Set to true to include cards from the Done list.",
+                },
+            },
+        },
+    },
+    {
+        "name": "create_trello_card",
+        "description": "Create a new card on Ben's Trello board.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Card title."},
+                "list_name": {
+                    "type": "string",
+                    "description": 'Name of the list to add the card to (e.g. "To Do", "Doing").',
+                },
+                "description": {"type": "string", "description": "Card description (markdown)."},
+                "due": {
+                    "type": "string",
+                    "description": "Due date in ISO 8601 format.",
+                },
+            },
+            "required": ["name", "list_name"],
+        },
+    },
+    {
+        "name": "update_trello_card",
+        "description": (
+            "Update an existing Trello card. Can change name, description, due date, "
+            "or move it to a different list."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "card_id": {"type": "string", "description": "The card's Trello ID."},
+                "name": {"type": "string", "description": "New card title."},
+                "description": {"type": "string", "description": "New description."},
+                "due": {
+                    "type": "string",
+                    "description": "New due date (ISO 8601), or empty string to clear.",
+                },
+                "list_name": {
+                    "type": "string",
+                    "description": "Name of the list to move the card to.",
+                },
+            },
+            "required": ["card_id"],
+        },
+    },
+    {
+        "name": "archive_trello_card",
+        "description": "Archive a Trello card (removes it from the board without deleting).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "card_id": {"type": "string", "description": "The card's Trello ID."},
+            },
+            "required": ["card_id"],
+        },
+    },
 ]
 
 
@@ -406,6 +474,44 @@ def execute_tool(name: str, inp: dict, state: dict, flags: dict) -> str:
         flags["draft"] = True
         return "Noted — the client will show a Copy button."
 
+    if name == "list_trello_cards":
+        exclude_done = not inp.get("include_done", False)
+        cards = trello_tool.get_cards(exclude_done=exclude_done)
+        if not cards:
+            return "No cards found."
+        lines = []
+        for c in cards:
+            line = f"- {c['name']} [{c['list']}] (card_id={c['id']})"
+            if c.get("due"):
+                line += f" due {c['due']}"
+            if c.get("labels"):
+                line += f" labels: {', '.join(c['labels'])}"
+            lines.append(line)
+        return "\n".join(lines)
+
+    if name == "create_trello_card":
+        card = trello_tool.create_card(
+            name=inp["name"],
+            list_name=inp["list_name"],
+            description=inp.get("description"),
+            due=inp.get("due"),
+        )
+        return f"Created card '{card['name']}' in {card['list']} (card_id={card['id']})."
+
+    if name == "update_trello_card":
+        card = trello_tool.update_card(
+            card_id=inp["card_id"],
+            name=inp.get("name"),
+            description=inp.get("description"),
+            due=inp.get("due"),
+            list_name=inp.get("list_name"),
+        )
+        return f"Updated card '{card['name']}' — now in {card['list']} (card_id={card['id']})."
+
+    if name == "archive_trello_card":
+        card = trello_tool.archive_card(inp["card_id"])
+        return f"Archived card '{card['name']}'."
+
     return f"Error: unknown tool {name}"
 
 
@@ -414,11 +520,10 @@ def run_chat(req: ChatRequest):
     client can show interim progress, then a final line with the reply."""
     profile = load_profile()
     state = load_state()
-    cards = fetch_context(get_cards, "trello")
     events = fetch_context(get_upcoming_events, "calendar")
     calendars = fetch_context(calendar_tool.list_calendars, "calendar list")
 
-    system_prompt = build_system_prompt(profile, state, events, cards, calendars=calendars)
+    system_prompt = build_system_prompt(profile, state, events, calendars=calendars)
 
     messages = [t.model_dump() for t in req.history]
     messages.append({"role": "user", "content": req.message})

@@ -9,7 +9,6 @@ def build_system_prompt(
     profile: str,
     state: dict,
     events: list[dict],
-    cards: list[dict],
     calendars: list[dict] | None = None,
     now: datetime | None = None,
 ) -> str:
@@ -38,10 +37,6 @@ def build_system_prompt(
         )
         or "(none)"
     )
-    card_lines = (
-        "\n".join(f"- {c['name']}" + (f" (due {c['due']})" if c.get("due") else "") for c in cards)
-        or "(none)"
-    )
     calendar_lines = (
         "\n".join(f"- {c['name']} (calendar_id={c['id']})" for c in (calendars or [])) or "(none)"
     )
@@ -58,9 +53,6 @@ Current date and time: {now_line}
 
 ## Upcoming calendar events (next 14 days only — use list_events for anything further out)
 {event_lines}
-
-## Trello cards
-{card_lines}
 
 ## Ben's calendars
 {calendar_lines}
@@ -119,4 +111,16 @@ check with Ben before creating or moving something into a conflict there.
 
 When a change affects other people, write a short draft message Ben can copy and
 send himself — never send anything yourself.
+
+## Trello tools
+You can read and manage Ben's Trello board:
+- list_trello_cards — fetch current cards. Excludes the "Done" list by default;
+  pass include_done=true to see everything. Use this to answer questions about
+  tasks, check what's on the board, etc.
+- create_trello_card — add a new card. Requires a name and list name (e.g.
+  "To Do", "Doing"). Optional description and due date.
+- update_trello_card — change a card's name, description, due date, or move it
+  to a different list. Pass the card_id from list_trello_cards.
+- archive_trello_card — archive a card (removes it from the board without
+  deleting). Pass the card_id.
 """
