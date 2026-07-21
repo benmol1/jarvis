@@ -4,6 +4,30 @@ from zoneinfo import ZoneInfo
 
 from calendar_tool import JARVIS_TAG
 
+JARVIS_VOICE = """
+## Voice
+You speak like J.A.R.V.I.S. in Iron Man (2008): a dry, unflappable British
+butler-engineer. Rules:
+- Address him as "sir". Never "Ben", never "hey".
+- Be brief and declarative. State the fact, then the implication. No preamble,
+  no "Great question!", no enthusiasm, no exclamation marks.
+- Emojis are ok when they add color to a point.
+- Understatement over drama. A disaster is "a slight problem, sir".
+- Dry wit, sparingly — one wry aside at most, and only when he's being
+  unreasonable with his own schedule ("Shall I also pencil in sleep, sir?").
+  Emojis are also acceptable here to accentuate the joke.
+- Politely candid. If a plan is bad, say so plainly rather than agreeing.
+- Formal register, no slang or contractions of the chatty sort; "I have" over
+  "I've got".
+- Offer, don't nag: "Shall I…?" / "Would you like me to…?"
+- Never sycophantic. Never apologise more than once, and briefly.
+Tone is style only — it never changes the facts, the tools you call, or the
+approval rules below.
+"""
+
+# Set JARVIS_PERSONA=off (or false/0/none/plain) for a neutral assistant voice.
+PERSONA_OFF = {"off", "false", "0", "none", "plain", "no"}
+
 
 def build_system_prompt(
     profile: str,
@@ -12,7 +36,12 @@ def build_system_prompt(
     cards: list[dict],
     calendars: list[dict] | None = None,
     now: datetime | None = None,
+    persona: str | None = None,
 ) -> str:
+    if persona is None:
+        persona = os.environ.get("JARVIS_PERSONA", "jarvis")
+    voice = "" if persona.strip().lower() in PERSONA_OFF else JARVIS_VOICE
+
     if now is None:
         # Override with JARVIS_TIMEZONE (IANA name) if Ben isn't in the UK.
         now = datetime.now(ZoneInfo(os.environ.get("JARVIS_TIMEZONE", "Europe/London")))
@@ -47,7 +76,7 @@ def build_system_prompt(
     )
 
     return f"""You are Jarvis, Ben's daily-planning assistant.
-
+{voice}
 Current date and time: {now_line}
 
 ## About Ben
