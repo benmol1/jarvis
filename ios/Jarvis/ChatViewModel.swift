@@ -38,8 +38,8 @@ final class ChatViewModel: ObservableObject {
         formatter.dateFormat = "HH:mm 'on' dd-MM-yyyy"
         let stamp = formatter.string(from: now)
         let hour = Calendar.current.component(.hour, from: now)
-        let part = hour < 12 ? "this morning" : hour < 18 ? "today" : "this evening"
-        return "Hi Ben, it's \(stamp). How can I help you \(part)?"
+        let part = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening"
+        return "Good \(part), sir. How can I help? It's \(stamp)."
     }
 
     func send() {
