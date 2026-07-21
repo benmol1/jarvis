@@ -37,13 +37,13 @@ iPhone (SwiftUI)                 Raspberry Pi (over tailnet)         Cloud APIs
 ─────────────────                ───────────────────────────        ──────────
 push-to-talk + text  ──HTTPS──▶  orchestrator service         ──▶   Claude Haiku (the brain)
 Apple STT + TTS                  holds all secrets/tokens      ──▶   Google Calendar (read+write)
-morning reminder                 memory store (files)          ──▶   Trello (read)
-approval / draft view  ◀──────   returns transcript + actions
+morning reminder                 memory store (files)          ──▶   Google Maps (read)
+approval / draft view  ◀──────   returns transcript + actions  ──▶   Trello (read)
 ```
 
 - **`backend/`** — Python + FastAPI orchestrator service, deployed via Docker to a
   Raspberry Pi and reached over Tailscale. Holds all secrets, talks to Claude with
-  tool-use, and integrates with Google Calendar and Trello.
+  tool-use, and integrates with Google Calendar, Google Maps and Trello.
 - **`ios/`** — native SwiftUI app: chat UI over `/chat`, with push-to-talk voice and a
   daily reminder planned for later phases.
 
@@ -78,7 +78,30 @@ the prompt's normal lookahead) overlaps something already on the calendar.
 
 <br>
 
-## `SYS/03` Repo layout
+## `MAP/03` Maps tools
+
+Jarvis can look up real places and travel times, so a plan says *when to leave*, not
+just when something starts. Read-only Google Maps Platform calls (Places Text Search +
+Distance Matrix) behind a plain `GOOGLE_MAPS_API_KEY` — no OAuth, no extra refresh
+token. Defined in [`backend/maps_tool.py`](backend/maps_tool.py).
+
+| Tool | Does | Approval |
+|---|---|---|
+| `find_place` | Resolve a fuzzy place name or address to a clean postal address + Google Maps link — use it before setting an event's location | N/A (read-only) |
+| `travel_time` | Distance and duration between two places, traffic-aware for driving at a chosen departure time. Takes several modes at once to compare (e.g. driving vs the train) | N/A (read-only) |
+| `add_route_to_event` | Plan a route and write it onto an existing event in one step: sets the location, appends travel time, distance, a "leave by" time and a directions link to the description | Same as `modify_event` — immediate if Jarvis-owned, otherwise queued |
+
+Travel mode (driving / walking / bicycling / transit) is Jarvis's call per request,
+inferred from the ask and Ben's habits in "About Ben"; when it genuinely can't tell it
+asks rather than assuming driving.
+
+`JARVIS_HOME_ADDRESS` and `JARVIS_WORK_ADDRESS` in `.env` let Jarvis pass `"home"` or
+`"work"` as an origin/destination. They're deliberately kept out of the "About Ben"
+profile, so the addresses only enter a request when a map tool actually resolves one.
+
+<br>
+
+## `SYS/04` Repo layout
 
 ```
 backend/    FastAPI service, Docker deployment, tests
@@ -89,7 +112,7 @@ TODO.md     Detailed task tracking per phase
 
 <br>
 
-## `SYS/04` Getting started
+## `SYS/05` Getting started
 
 ### ▸ Backend
 
@@ -140,7 +163,7 @@ that). To build, install, and launch on a connected iPhone without opening Xcode
 
 <br>
 
-## `SYS/05` Status
+## `SYS/06` Status
 
 Single-user personal project, not intended for App Store distribution or multi-tenant
 use. See [TODO.md](TODO.md) for exactly what's done and what's next.
