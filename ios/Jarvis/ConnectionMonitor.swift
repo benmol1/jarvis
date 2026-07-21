@@ -17,9 +17,9 @@ enum ConnectionStatus: Equatable {
 
     var label: String {
         switch self {
-        case .local: return "LOCAL"
-        case .tailnet: return "TAILNET"
-        case .unknown: return "ONLINE"
+        case .local: return "Online: Local"
+        case .tailnet: return "Online: Tailnet"
+        case .unknown: return "Online: Other"
         case .offline: return "OFFLINE"
         }
     }

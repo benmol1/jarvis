@@ -250,7 +250,8 @@
     // Polls /health to show whether we're reaching the Pi over Ben's home
     // LAN, over the tailnet, or not at all — /health classifies the caller's
     // source IP server-side, so the page just displays whatever it says.
-    const CONNECTION_LABELS = { local: "Local", tailnet: "Tailnet", unknown: "Online", offline: "Offline" };
+    const CONNECTION_LABELS = { local: "Online: Local", tailnet: "Online: Tailnet", 
+      unknown: "Online: Other", offline: "Offline" };
 
     function setConnection(conn) {
       statusEl.dataset.conn = conn;
