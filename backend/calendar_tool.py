@@ -132,12 +132,18 @@ def list_calendars() -> list[dict]:
 
 
 def get_event(calendar_id: str, event_id: str) -> dict:
-    """Fetch one event, exposing whether Jarvis created it."""
+    """Fetch one event, exposing whether Jarvis created it. `description` is the
+    human-readable body with any Jarvis metadata line stripped, so callers can
+    append to it without duplicating the tag/timestamps."""
     service = get_calendar_service()
     event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
+    _, body = _split_description(event.get("description"))
     return {
         "id": event["id"],
         "summary": event.get("summary", "(no title)"),
+        "start": event["start"].get("dateTime", event["start"].get("date")),
+        "location": event.get("location"),
+        "description": body,
         "jarvis": _is_jarvis(event),
     }
 

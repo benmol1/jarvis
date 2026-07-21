@@ -371,6 +371,343 @@ def test_respond_to_event_applies_immediately(monkeypatch):
     assert calls == [("primary", "x", "accepted")]
 
 
+def test_find_place_returns_location_and_maps_link(monkeypatch):
+    monkeypatch.setattr(
+        main.maps_tool,
+        "find_place",
+        lambda q: {
+            "name": "Nando's",
+            "address": "2 High St, Guildford",
+            "location": "Nando's, 2 High St, Guildford",
+            "place_id": "pid",
+            "maps_url": "https://maps.example/pid",
+        },
+    )
+
+    result = main.execute_tool(
+        "find_place", {"query": "nandos guildford"}, _state(), {"draft": False}
+    )
+
+    assert "Nando's, 2 High St, Guildford" in result
+    assert "https://maps.example/pid" in result
+
+
+def test_find_place_reports_no_match(monkeypatch):
+    monkeypatch.setattr(main.maps_tool, "find_place", lambda q: {})
+
+    result = main.execute_tool("find_place", {"query": "zzz"}, _state(), {"draft": False})
+
+    assert "No place found" in result
+
+
+def test_travel_time_prefers_traffic_duration(monkeypatch):
+    monkeypatch.setattr(
+        main.maps_tool,
+        "travel_time",
+        lambda o, d, mode="driving", depart_at=None: {
+            "origin": "Home",
+            "destination": "Office",
+            "mode": "driving",
+            "distance": "45 km",
+            "duration": "50 mins",
+            "duration_in_traffic": "1 hour 10 mins",
+        },
+    )
+
+    result = main.execute_tool(
+        "travel_time", {"origin": "Home", "destination": "Office"}, _state(), {"draft": False}
+    )
+
+    assert "1 hour 10 mins" in result and "in current traffic" in result
+    assert "45 km" in result
+
+
+def test_travel_time_reports_no_route(monkeypatch):
+    monkeypatch.setattr(
+        main.maps_tool, "travel_time", lambda o, d, mode="driving", depart_at=None: {}
+    )
+
+    result = main.execute_tool(
+        "travel_time",
+        {"origin": "A", "destination": "B", "modes": ["transit"]},
+        _state(),
+        {"draft": False},
+    )
+
+    assert "No route found" in result and "transit" in result
+
+
+def test_travel_time_compares_multiple_modes(monkeypatch):
+    """Passing several modes returns a line per mode so Ben can compare."""
+
+    def fake(o, d, mode="driving", depart_at=None):
+        if mode == "driving":
+            return {
+                "origin": "Home",
+                "destination": "Office",
+                "mode": "driving",
+                "distance": "45 km",
+                "duration": "50 mins",
+                "duration_in_traffic": "1 hour 10 mins",
+                "duration_seconds": 4200,
+            }
+        return {}  # no transit route
+
+    monkeypatch.setattr(main.maps_tool, "travel_time", fake)
+
+    result = main.execute_tool(
+        "travel_time",
+        {"origin": "Home", "destination": "Office", "modes": ["driving", "transit"]},
+        _state(),
+        {"draft": False},
+    )
+
+    assert "Home → Office" in result
+    assert "driving: 1 hour 10 mins in current traffic, 45 km" in result
+    assert "transit: no route" in result  # partial failure still reported
+
+
+def _route(**over):
+    """A plan_route result stub."""
+    base = {
+        "origin": "Home, Guildford",
+        "destination": "Office, London",
+        "mode": "driving",
+        "distance": "45 km",
+        "duration": "50 mins",
+        "duration_in_traffic": "1 hour 10 mins",
+        "duration_seconds": 4200,
+        "directions_url": "https://maps.example/dir",
+    }
+    base.update(over)
+    return base
+
+
+def test_add_route_to_jarvis_event_applies_and_writes_directions(monkeypatch):
+    monkeypatch.setattr(
+        main.calendar_tool,
+        "get_event",
+        lambda c, i: {
+            "summary": "Client meeting",
+            "start": "2026-07-20T09:00:00+01:00",
+            "description": "Bring the deck.",
+            "jarvis": True,
+        },
+    )
+    monkeypatch.setattr(
+        main.maps_tool, "plan_route", lambda o, d, mode="driving", depart_at=None: _route()
+    )
+    modified = []
+    monkeypatch.setattr(main.calendar_tool, "modify_event", lambda *a, **kw: modified.append(kw))
+
+    result = main.execute_tool(
+        "add_route_to_event",
+        {
+            "event_id": "x",
+            "calendar_id": "primary",
+            "origin": "home",
+            "destination": "office",
+            "mode": "driving",
+        },
+        _state(),
+        {"draft": False},
+    )
+
+    kw = modified[0]
+    assert kw["location"] == "Office, London"
+    # Existing note preserved, route block appended with link and leave-by time.
+    assert kw["description"].startswith("Bring the deck.")
+    assert "https://maps.example/dir" in kw["description"]
+    assert "Leave by 07:50" in kw["description"]  # 09:00 minus 70 mins
+    assert "Added the driving route" in result
+
+
+def test_add_route_replaces_stale_route_block(monkeypatch):
+    """Re-planning must swap the route block, not stack a second one."""
+    monkeypatch.setattr(
+        main.calendar_tool,
+        "get_event",
+        lambda c, i: {
+            "summary": "Client meeting",
+            "start": "2026-07-20T09:00:00+01:00",
+            "description": "Bring the deck.\n\n🗺️ Route to Old place: 20 mins.\nDirections: old",
+            "jarvis": True,
+        },
+    )
+    monkeypatch.setattr(
+        main.maps_tool, "plan_route", lambda o, d, mode="driving", depart_at=None: _route()
+    )
+    modified = []
+    monkeypatch.setattr(main.calendar_tool, "modify_event", lambda *a, **kw: modified.append(kw))
+
+    main.execute_tool(
+        "add_route_to_event",
+        {"event_id": "x", "calendar_id": "primary", "origin": "home", "destination": "office"},
+        _state(),
+        {"draft": False},
+    )
+
+    desc = modified[0]["description"]
+    assert desc.count("🗺️ Route") == 1  # only the new block
+    assert "Old place" not in desc
+    assert desc.startswith("Bring the deck.")
+
+
+def test_add_route_to_foreign_event_is_queued(monkeypatch):
+    monkeypatch.setattr(
+        main.calendar_tool,
+        "get_event",
+        lambda c, i: {
+            "summary": "Dentist",
+            "start": "2026-07-20T09:00:00+01:00",
+            "description": "",
+            "jarvis": False,
+        },
+    )
+    monkeypatch.setattr(
+        main.maps_tool, "plan_route", lambda o, d, mode="driving", depart_at=None: _route()
+    )
+    modified = []
+    monkeypatch.setattr(main.calendar_tool, "modify_event", lambda *a, **kw: modified.append(kw))
+    state = _state()
+
+    main.execute_tool(
+        "add_route_to_event",
+        {"event_id": "x", "calendar_id": "primary", "origin": "home", "destination": "office"},
+        state,
+        {"draft": False},
+    )
+
+    assert modified == []  # foreign event untouched until approved
+    item = state["pending_approvals"][0]
+    assert item["action"] == "modify_event"  # applied via the standard modify path
+    assert item["location"] == "Office, London"
+    assert "https://maps.example/dir" in item["description"]
+
+
+def test_add_route_reports_no_route(monkeypatch):
+    monkeypatch.setattr(
+        main.calendar_tool,
+        "get_event",
+        lambda c, i: {"summary": "X", "start": "2026-07-20T09:00:00+01:00", "jarvis": True},
+    )
+    monkeypatch.setattr(
+        main.maps_tool, "plan_route", lambda o, d, mode="driving", depart_at=None: {}
+    )
+
+    result = main.execute_tool(
+        "add_route_to_event",
+        {
+            "event_id": "x",
+            "calendar_id": "primary",
+            "origin": "A",
+            "destination": "B",
+            "modes": ["transit"],
+        },
+        _state(),
+        {"draft": False},
+    )
+
+    assert "No route found" in result and "transit" in result
+
+
+def test_add_route_saves_the_chosen_mode(monkeypatch):
+    """A single mode writes one route block for that mode."""
+    monkeypatch.setattr(
+        main.calendar_tool,
+        "get_event",
+        lambda c, i: {
+            "summary": "Client meeting",
+            "start": "2026-07-20T09:00:00+01:00",
+            "description": "",
+            "jarvis": True,
+        },
+    )
+    captured = {}
+
+    def fake_plan(o, d, mode="driving", depart_at=None):
+        captured["mode"] = mode
+        return _route(
+            mode="transit",
+            duration="1 hour 30 mins",
+            duration_in_traffic=None,
+            duration_seconds=5400,
+            directions_url="https://maps.example/train",
+        )
+
+    monkeypatch.setattr(main.maps_tool, "plan_route", fake_plan)
+    modified = []
+    monkeypatch.setattr(main.calendar_tool, "modify_event", lambda *a, **kw: modified.append(kw))
+
+    result = main.execute_tool(
+        "add_route_to_event",
+        {
+            "event_id": "x",
+            "calendar_id": "primary",
+            "origin": "home",
+            "destination": "office",
+            "modes": ["transit"],
+        },
+        _state(),
+        {"draft": False},
+    )
+
+    assert captured["mode"] == "transit"  # the parameter is honoured
+    desc = modified[0]["description"]
+    assert desc.count("🗺️ Route") == 1  # a single block for the chosen mode
+    assert "https://maps.example/train" in desc
+    assert "by transit" in desc
+    assert "Added the transit route" in result
+
+
+def test_add_route_saves_both_modes_for_comparison(monkeypatch):
+    """Passing several modes writes a route block per mode so Ben can choose."""
+    monkeypatch.setattr(
+        main.calendar_tool,
+        "get_event",
+        lambda c, i: {
+            "summary": "Client meeting",
+            "start": "2026-07-20T09:00:00+01:00",
+            "description": "",
+            "jarvis": True,
+        },
+    )
+
+    def fake_plan(o, d, mode="driving", depart_at=None):
+        if mode == "driving":
+            return _route(mode="driving", directions_url="https://maps.example/drive")
+        return _route(
+            mode="transit",
+            duration="1 hour 30 mins",
+            duration_in_traffic=None,
+            duration_seconds=5400,
+            directions_url="https://maps.example/train",
+        )
+
+    monkeypatch.setattr(main.maps_tool, "plan_route", fake_plan)
+    modified = []
+    monkeypatch.setattr(main.calendar_tool, "modify_event", lambda *a, **kw: modified.append(kw))
+
+    result = main.execute_tool(
+        "add_route_to_event",
+        {
+            "event_id": "x",
+            "calendar_id": "primary",
+            "origin": "home",
+            "destination": "office",
+            "modes": ["driving", "transit"],
+        },
+        _state(),
+        {"draft": False},
+    )
+
+    desc = modified[0]["description"]
+    assert desc.count("🗺️ Route") == 2  # one block per mode
+    assert "https://maps.example/drive" in desc and "https://maps.example/train" in desc
+    assert "by driving" in desc and "by transit" in desc
+    assert "driving, transit routes" in result
+
+
 def test_cancel_approval_removes_queued_item():
     state = {"pending_approvals": [{"id": "abc", "label": "Delete 'Dentist'"}]}
 

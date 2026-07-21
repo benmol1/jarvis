@@ -1,6 +1,6 @@
 # Jarvis — TODO
 
-*Last updated: 2026-07-16 10:19*
+*Last updated: 2026-07-21 18:02*
 
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
@@ -176,11 +176,41 @@ else's** event is queued for Ben's approval in the app.
   - Approvals persisted in `state["pending_approvals"]` with stable ids
     (`/apply` clears by id); any change inviting other people is queued
   - Reconciled client-side (web + iOS) instead of appending a bubble per turn
-- [ ] Make sure JARVIS can automatically fill locations
-  - `create_event`/`modify_event` now accept an optional `location`, but
-    Jarvis only fills it when asked — no auto-inference yet
+- [x] Make sure JARVIS can automatically fill locations
+  - `create_event`/`modify_event` accept an optional `location`; the Maps
+    tools now let Jarvis resolve one — `find_place` turns a fuzzy name into a
+    clean postal address + Maps link, and `add_route_to_event` sets the event
+    location outright (see "Google Maps integration")
 - [x] iOS: mirror the approval/copy view (done in Phase 2.5 — iOS Interface)
 - [ ] Deploy and verify on the Pi (tested locally only so far)
+
+## Google Maps integration ⏳ IN PROGRESS
+
+Unplanned work: give Jarvis travel times and real locations so it can plan
+"when to leave" and attach directions to events (`backend/maps_tool.py`).
+
+- [x] `find_place` — resolve a fuzzy place name/address to a postal address +
+      Google Maps deep link (Places Text Search)
+- [x] `travel_time` — distance/duration between two places, traffic-aware for
+      driving at a chosen departure time (Distance Matrix); returns
+      `duration_seconds` so callers can compute a "leave by" time
+- [x] `add_route_to_event` — plan a route and write it onto an existing event
+      in one step: sets the location, appends a route block (travel time,
+      distance, leave-by, directions link) to the description, replacing any
+      prior block. Applies inline on Jarvis-owned events, queues via the
+      standard approval otherwise
+- [x] Accept a list of travel modes (driving / walking / bicycling / transit)
+      so Jarvis can compare e.g. driving vs the train in one call; prompt
+      tells it to infer the mode from Ben's habits and ask when unsure rather
+      than defaulting to driving
+- [x] Saved places: `resolve_location` expands "home"/"work" to
+      `JARVIS_HOME_ADDRESS` / `JARVIS_WORK_ADDRESS`, kept out of the system
+      prompt so the addresses only enter a request when a tool needs them
+- [x] Plain `GOOGLE_MAPS_API_KEY` auth (no OAuth, no new refresh token);
+      documented in `.env.example`, wired into the tool loop, prompt, and
+      `CLAUDE.md`, with unit tests for the module and the `execute_tool` branches
+- [ ] Enable the Distance Matrix + Places APIs on the key and deploy/verify on
+      the Pi (tested locally only so far)
 
 ## Phase 2.5 — iOS Interface (Jarvis HUD) ✅ COMPLETE
 
