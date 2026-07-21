@@ -25,6 +25,16 @@ def test_build_system_prompt_includes_all_sections():
     assert "Write TODO (due 2026-07-03T00:00:00Z)" in result
 
 
+def test_persona_toggle():
+    assert 'Address him as "sir"' in build_system_prompt("", {}, [], [])
+    assert 'Address him as "sir"' not in build_system_prompt("", {}, [], [], persona="off")
+
+
+def test_persona_env_var(monkeypatch):
+    monkeypatch.setenv("JARVIS_PERSONA", "OFF")
+    assert "## Voice" not in build_system_prompt("", {}, [], [])
+
+
 def test_build_system_prompt_handles_empty_inputs():
     result = build_system_prompt(profile="", state={}, events=[], cards=[])
 
