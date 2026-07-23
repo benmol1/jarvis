@@ -223,11 +223,17 @@ Unplanned work: give Jarvis travel times and real locations so it can plan
     `NSLocationWhenInUseUsageDescription`; `ChatViewModel` attaches the fix to
     `ChatRequestBody.lat`/`lon` when one arrives within a few seconds, sending
     neither field otherwise so the backend's LAN fallback applies
-- [ ] Feature: stamp "Location added at: DD/MM/YY HH:MM" whenever a location
+- [x] Feature: stamp "Location added at: DD/MM/YY HH:MM" whenever a location
       is set/changed (`create_event`, `modify_event`, `add_route_to_event`)
-  - Apply to foreign (non-Jarvis-owned) events too, once the change is
-    approved via `/apply` — today only Jarvis-owned events get any
-    created/modified-at stamping, so this widens that
+  - New `_restamp_location()` helper in `calendar_tool.py`: strips any
+    previous "Location added at" line and appends a fresh one whenever
+    `location` is set. Wired into `create_event` and `modify_event`;
+    `add_route_to_event` gets it for free since it's built on `modify_event`
+  - Applies to foreign (non-Jarvis-owned) events too, once the change is
+    approved via `/apply` — unlike the `JARVIS_TAG` created/modified-at line
+    (ownership-carrying, foreign events never get it), the location stamp
+    carries no ownership meaning, so it's safe to add without flipping
+    ownership onto Jarvis
 
 ## Phase 2.5 — iOS Interface (Jarvis HUD) ✅ COMPLETE
 

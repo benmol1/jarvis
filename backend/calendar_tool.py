@@ -19,6 +19,23 @@ _META_RE = re.compile(
 )
 
 
+_LOCATION_STAMP_PREFIX = "Location added at:"
+
+
+def _restamp_location(body: str, when: str) -> str:
+    """Replace any previous 'Location added at' line in a description body
+    with a fresh one, so resetting the location doesn't pile up duplicates.
+    Applied regardless of Jarvis ownership — unlike the created/modified-at
+    metadata line, this carries no ownership meaning, so it's safe to add to
+    a foreign event's description without flipping ownership onto Jarvis."""
+    lines = [
+        line for line in body.split("\n") if not line.strip().startswith(_LOCATION_STAMP_PREFIX)
+    ]
+    body = "\n".join(lines).strip()
+    stamp = f"{_LOCATION_STAMP_PREFIX} {when}"
+    return f"{body}\n\n{stamp}" if body else stamp
+
+
 def _now_stamp() -> str:
     # Override with JARVIS_TIMEZONE (IANA name) if Ben isn't in the UK — mirrors
     # prompt.py's "now" so description stamps agree with what Jarvis is told.
@@ -178,9 +195,12 @@ def create_event(
     """Create a Jarvis-owned event. start/end are ISO 8601 with offset. When
     attendees are given, invites are actually emailed (sendUpdates=all)."""
     service = get_calendar_service()
+    now = _now_stamp()
+    if location:
+        description = _restamp_location(description or "", now)
     body = {
         "summary": summary,
-        "description": _compose_description(description, _now_stamp()),
+        "description": _compose_description(description, now),
         "start": {"dateTime": start},
         "end": {"dateTime": end},
     }
@@ -227,9 +247,18 @@ def modify_event(
     if is_jarvis:
         created, existing_body = _split_description(existing.get("description"))
         new_body = description if description is not None else existing_body
+        if location is not None:
+            new_body = _restamp_location(new_body, _now_stamp())
         body["description"] = _compose_description(new_body, created or _now_stamp(), _now_stamp())
-    elif description is not None:
-        body["description"] = description  # foreign event: leave it unstamped
+    elif description is not None or location is not None:
+        # foreign event: no JARVIS_TAG (that would flip ownership), but the
+        # location stamp itself carries no ownership meaning, so it still
+        # applies here once Ben approves the change.
+        _, existing_body = _split_description(existing.get("description"))
+        new_body = description if description is not None else existing_body
+        if location is not None:
+            new_body = _restamp_location(new_body, _now_stamp())
+        body["description"] = new_body
 
     kwargs = {"calendarId": calendar_id, "eventId": event_id, "body": body}
     if attendees is not None:
