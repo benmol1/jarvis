@@ -106,6 +106,7 @@ def get_events_in_range(time_min: str, time_max: str) -> list[dict]:
             .execute()
         )
         for event in result.get("items", []):
+            _, body = _split_description(event.get("description"))
             events.append(
                 {
                     "id": event.get("id"),
@@ -114,6 +115,8 @@ def get_events_in_range(time_min: str, time_max: str) -> list[dict]:
                     "summary": event.get("summary", "(no title)"),
                     "start": event["start"].get("dateTime", event["start"].get("date")),
                     "end": event["end"].get("dateTime", event["end"].get("date")),
+                    "location": event.get("location"),
+                    "description": body,
                     "jarvis": _is_jarvis(event),
                 }
             )

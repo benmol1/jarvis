@@ -12,7 +12,8 @@ def test_get_upcoming_events_merges_all_calendars():
                 {
                     "id": "evt1",
                     "summary": "Standup",
-                    "description": "🤖 [Jarvis]",
+                    "description": "🤖 [Jarvis]\n\nDaily sync",
+                    "location": "Meeting Room 2",
                     "start": {"dateTime": "2026-07-03T09:00:00Z"},
                     "end": {"dateTime": "2026-07-03T09:15:00Z"},
                 },
@@ -52,6 +53,9 @@ def test_get_upcoming_events_merges_all_calendars():
             events = get_upcoming_events()
 
     # Both calendars present, sorted by start, tagged with calendar name.
+    # location/description are surfaced too (Jarvis metadata line stripped
+    # from the description), so Jarvis can answer questions about an event
+    # already in view without a separate lookup.
     assert events == [
         {
             "id": "evt1",
@@ -60,6 +64,8 @@ def test_get_upcoming_events_merges_all_calendars():
             "summary": "Standup",
             "start": "2026-07-03T09:00:00Z",
             "end": "2026-07-03T09:15:00Z",
+            "location": "Meeting Room 2",
+            "description": "Daily sync",
             "jarvis": True,
         },
         {
@@ -69,6 +75,8 @@ def test_get_upcoming_events_merges_all_calendars():
             "summary": "(no title)",
             "start": "2026-07-04",
             "end": "2026-07-05",
+            "location": None,
+            "description": "",
             "jarvis": False,
         },
     ]

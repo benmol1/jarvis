@@ -366,15 +366,19 @@ Not building: an in-app calendar/Trello view. Jarvis's writes already show up in
       Saturday + Sunday in the current timezone — suspected BST/GMT confusion
       (logged in `bugs/bug_log.txt`); no code-level cause found so far (see
       note above) — watch for recurrence after the timestamp fix ships
-- [ ] Bug: Jarvis can't read location/description from existing calendar
+- [x] Bug: Jarvis can't read location/description from existing calendar
       events. `get_events_in_range` (backs `list_events`, the injected prompt
-      context, and `get_upcoming_events`) only returns
+      context, and `get_upcoming_events`) only returned
       id/calendar_id/calendar/summary/start/end/jarvis — location and
-      description are dropped, even though Google returns them and
-      `get_event`/`_split_description` already know how to extract them
-      (currently only used internally by modify/delete/move). Fix: add
-      `location` and `description` (stripped of the Jarvis metadata line) to
-      every event `get_events_in_range` returns
+      description were dropped, even though Google returns them and
+      `get_event`/`_split_description` already knew how to extract them
+      (previously only used internally by modify/delete/move). Now
+      `get_events_in_range` includes `location` and `description` (stripped
+      of the Jarvis metadata line) on every event; the ambient 14-day prompt
+      context shows `location` inline (compact, always useful), and the
+      on-demand `list_events` tool result shows both `location` and
+      `description` in full (kept out of the ambient context to avoid
+      bloating every turn with route-block-length descriptions)
   - Also logged in `bugs/bug_log.txt` ("couldn't read existing event location
     or the directions embedded into the event description")
 - [x] Desktop redesign PR regressed the chat UI: reverted the NDJSON stream

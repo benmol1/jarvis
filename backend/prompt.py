@@ -61,6 +61,7 @@ def build_system_prompt(
         "\n".join(
             f"- {e['start']}: {e['summary']}"
             + (f" [{e['calendar']}]" if e.get("calendar") else "")
+            + (f" @ {e['location']}" if e.get("location") else "")
             + f" (event_id={e.get('id')}, calendar_id={e.get('calendar_id')})"
             + (" — created by Jarvis" if e.get("jarvis") else "")
             for e in events

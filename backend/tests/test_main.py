@@ -256,6 +256,62 @@ def test_create_event_warns_on_conflict_far_out(monkeypatch):
     assert "Warning" in result and "Standup" in result
 
 
+def test_list_events_includes_location_and_description(monkeypatch):
+    """Regression test: Jarvis previously had no way to see an existing event's
+    location or description, since list_events dropped both fields."""
+    monkeypatch.setattr(
+        main.calendar_tool,
+        "get_events_in_range",
+        lambda start, end: [
+            {
+                "id": "evt1",
+                "calendar_id": "primary",
+                "calendar": "Personal",
+                "summary": "Dentist",
+                "start": "2026-07-03T09:00:00Z",
+                "end": "2026-07-03T09:30:00Z",
+                "location": "123 High St",
+                "description": "Bring insurance card",
+                "jarvis": False,
+            }
+        ],
+    )
+
+    result = main.execute_tool(
+        "list_events", {"start": "S", "end": "E"}, _state(), {"draft": False}
+    )
+
+    assert "location: 123 High St" in result
+    assert "description: Bring insurance card" in result
+
+
+def test_list_events_omits_blank_location_and_description(monkeypatch):
+    monkeypatch.setattr(
+        main.calendar_tool,
+        "get_events_in_range",
+        lambda start, end: [
+            {
+                "id": "evt1",
+                "calendar_id": "primary",
+                "calendar": "Personal",
+                "summary": "Standup",
+                "start": "2026-07-03T09:00:00Z",
+                "end": "2026-07-03T09:15:00Z",
+                "location": None,
+                "description": "",
+                "jarvis": True,
+            }
+        ],
+    )
+
+    result = main.execute_tool(
+        "list_events", {"start": "S", "end": "E"}, _state(), {"draft": False}
+    )
+
+    assert "location:" not in result
+    assert "description:" not in result
+
+
 def test_modify_jarvis_event_applies_immediately(monkeypatch):
     monkeypatch.setattr(
         main.calendar_tool, "get_event", lambda c, i: {"summary": "Focus", "jarvis": True}

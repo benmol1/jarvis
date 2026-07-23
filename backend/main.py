@@ -565,6 +565,8 @@ def execute_tool(name: str, inp: dict, state: dict, flags: dict) -> str:
         return "\n".join(
             f"{e['start']} to {e['end']}: {e['summary']} ({e['calendar']}) "
             f"(event_id={e['id']}, calendar_id={e['calendar_id']})"
+            + (f"\n  location: {e['location']}" if e.get("location") else "")
+            + (f"\n  description: {e['description']}" if e.get("description") else "")
             for e in events
         )
 
