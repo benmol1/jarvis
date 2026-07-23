@@ -124,7 +124,7 @@ def test_create_event_with_location_stamps_location_added_at():
             )
 
     description = mock_service.events.return_value.insert.call_args.kwargs["body"]["description"]
-    assert re.search(r"Location added at: \d{2}/\d{2}/\d{2} \d{2}:\d{2}", description)
+    assert re.search(r"Location added by JARVIS at: \d{2}/\d{2}/\d{2} \d{2}:\d{2}", description)
 
 
 def test_create_event_without_location_has_no_location_stamp():
@@ -136,7 +136,7 @@ def test_create_event_without_location_has_no_location_stamp():
             create_event("Focus block", "2026-07-15T09:00:00+01:00", "2026-07-15T10:00:00+01:00")
 
     description = mock_service.events.return_value.insert.call_args.kwargs["body"]["description"]
-    assert "Location added at:" not in description
+    assert "Location added by JARVIS at:" not in description
 
 
 def test_modify_event_jarvis_owned_stamps_location_when_location_changes():
@@ -152,7 +152,7 @@ def test_modify_event_jarvis_owned_stamps_location_when_location_changes():
 
     body = mock_service.events.return_value.patch.call_args.kwargs["body"]
     assert "Original notes" in body["description"]
-    assert re.search(r"Location added at: \d{2}/\d{2}/\d{2} \d{2}:\d{2}", body["description"])
+    assert re.search(r"Location added by JARVIS at: \d{2}/\d{2}/\d{2} \d{2}:\d{2}", body["description"])
 
 
 def test_modify_event_foreign_stamps_location_without_flipping_ownership():
@@ -171,13 +171,13 @@ def test_modify_event_foreign_stamps_location_without_flipping_ownership():
     body = mock_service.events.return_value.patch.call_args.kwargs["body"]
     assert JARVIS_TAG not in body["description"]
     assert "Ben's own notes" in body["description"]
-    assert re.search(r"Location added at: \d{2}/\d{2}/\d{2} \d{2}:\d{2}", body["description"])
+    assert re.search(r"Location added by JARVIS at: \d{2}/\d{2}/\d{2} \d{2}:\d{2}", body["description"])
 
 
 def test_modify_event_restamping_location_replaces_previous_stamp():
     mock_service = MagicMock()
     mock_service.events.return_value.get.return_value.execute.return_value = {
-        "description": "Ben's own notes\n\nLocation added at: 01/01/26 09:00"
+        "description": "Ben's own notes\n\nLocation added by JARVIS at: 01/01/26 09:00"
     }
     mock_service.events.return_value.patch.return_value.execute.return_value = {}
 
@@ -186,7 +186,7 @@ def test_modify_event_restamping_location_replaces_previous_stamp():
             modify_event("primary", "evt1", location="456 Low St")
 
     description = mock_service.events.return_value.patch.call_args.kwargs["body"]["description"]
-    assert description.count("Location added at:") == 1
+    assert description.count("Location added by JARVIS at:") == 1
     assert "01/01/26 09:00" not in description
 
 

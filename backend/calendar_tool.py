@@ -19,11 +19,11 @@ _META_RE = re.compile(
 )
 
 
-_LOCATION_STAMP_PREFIX = "Location added at:"
+_LOCATION_STAMP_PREFIX = "Location added by JARVIS at:"
 
 
 def _restamp_location(body: str, when: str) -> str:
-    """Replace any previous 'Location added at' line in a description body
+    """Replace any previous 'Location added by JARVIS at' line in a description body
     with a fresh one, so resetting the location doesn't pile up duplicates.
     Applied regardless of Jarvis ownership — unlike the created/modified-at
     metadata line, this carries no ownership meaning, so it's safe to add to
