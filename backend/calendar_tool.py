@@ -1,6 +1,7 @@
 import os
 import re
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -19,7 +20,10 @@ _META_RE = re.compile(
 
 
 def _now_stamp() -> str:
-    return datetime.now().strftime("%d/%m/%y %H:%M")
+    # Override with JARVIS_TIMEZONE (IANA name) if Ben isn't in the UK — mirrors
+    # prompt.py's "now" so description stamps agree with what Jarvis is told.
+    tz = ZoneInfo(os.environ.get("JARVIS_TIMEZONE", "Europe/London"))
+    return datetime.now(tz).strftime("%d/%m/%y %H:%M")
 
 
 def _compose_description(body: str | None, created_at: str, modified_at: str | None = None) -> str:
@@ -274,7 +278,7 @@ def copy_event(calendar_id: str, event_id: str, destination_calendar_id: str) ->
     The copy is stamped Jarvis-owned so Jarvis can manage it later."""
     service = get_calendar_service()
     src = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
-    created_at = datetime.now().strftime("%d/%m/%y %H:%M")
+    created_at = _now_stamp()
     body = {
         "summary": src.get("summary", "(no title)"),
         "description": f"{JARVIS_TAG} - created at: {created_at}",

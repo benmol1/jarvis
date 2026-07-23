@@ -1,6 +1,6 @@
 # Jarvis — TODO
 
-*Last updated: 2026-07-21 18:02*
+*Last updated: 2026-07-23*
 
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
@@ -211,6 +211,19 @@ Unplanned work: give Jarvis travel times and real locations so it can plan
       `CLAUDE.md`, with unit tests for the module and the `execute_tool` branches
 - [ ] Enable the Distance Matrix + Places APIs on the key and deploy/verify on
       the Pi (tested locally only so far)
+- [ ] New tool: Ben's current location, for route planning
+  - Reuse the existing home-LAN vs tailnet classification (`classify_connection`
+    in `main.py`, already backing `/health`'s connection-status pill) per
+    request: if the request comes from the home LAN, resolve straight to
+    `JARVIS_HOME_ADDRESS`
+  - Otherwise (tailnet/away) fall back to live GPS from the iOS app — needs a
+    new location permission + the app sending coords with chat requests, and a
+    new field threaded through to the tool
+- [ ] Feature: stamp "Location added at: DD/MM/YY HH:MM" whenever a location
+      is set/changed (`create_event`, `modify_event`, `add_route_to_event`)
+  - Apply to foreign (non-Jarvis-owned) events too, once the change is
+    approved via `/apply` — today only Jarvis-owned events get any
+    created/modified-at stamping, so this widens that
 
 ## Phase 2.5 — iOS Interface (Jarvis HUD) ✅ COMPLETE
 
@@ -337,9 +350,33 @@ Not building: an in-app calendar/Trello view. Jarvis's writes already show up in
       calendar tools refactor: `move_event` replaced with `modify_event`,
       which patches any subset of fields (including title) on an event.
 - [ ] The approval message showed a timestamp in a format that's a bit difficult to read - change to YYYY-MM-DD | hh:mm
+- [x] GMT/BST bug: event description timestamps ("created at"/"modified at",
+      `calendar_tool._now_stamp()`) used naive `datetime.now()`, which
+      resolved to raw UTC in the Pi's Docker container (no `TZ` set) — an
+      hour off during BST. Now uses `ZoneInfo(JARVIS_TIMEZONE or
+      "Europe/London")`, matching `prompt.py`'s existing "current time" logic;
+      `copy_event`'s duplicate inline stamp now reuses `_now_stamp()` too
+  - Investigated folding in the "weekend" misinterpretation bug below: found
+    no separate code fix — `prompt.py`'s `now_line` (what Claude is told the
+    current date/day is) has been `ZoneInfo`-correct since date-awareness was
+    added (2026-07-14), so nothing there was mislabeling BST as GMT. If
+    "weekend" confusion recurs after this fix ships, it isn't a timezone
+    labelling bug and needs fresh diagnosis
 - [ ] "Weekend" is sometimes misinterpreted instead of always meaning
       Saturday + Sunday in the current timezone — suspected BST/GMT confusion
-      (logged in `bugs/bug_log.txt`)
+      (logged in `bugs/bug_log.txt`); no code-level cause found so far (see
+      note above) — watch for recurrence after the timestamp fix ships
+- [ ] Bug: Jarvis can't read location/description from existing calendar
+      events. `get_events_in_range` (backs `list_events`, the injected prompt
+      context, and `get_upcoming_events`) only returns
+      id/calendar_id/calendar/summary/start/end/jarvis — location and
+      description are dropped, even though Google returns them and
+      `get_event`/`_split_description` already know how to extract them
+      (currently only used internally by modify/delete/move). Fix: add
+      `location` and `description` (stripped of the Jarvis metadata line) to
+      every event `get_events_in_range` returns
+  - Also logged in `bugs/bug_log.txt` ("couldn't read existing event location
+    or the directions embedded into the event description")
 - [x] Desktop redesign PR regressed the chat UI: reverted the NDJSON stream
       reader back to `res.json()` (broke tool-progress display with a JSON
       parse error) and silently dropped the `addCopyButton`/`renderApprovals`
