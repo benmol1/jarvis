@@ -11,6 +11,12 @@ struct Turn: Codable {
 struct ChatRequestBody: Encodable {
     let message: String
     let history: [Turn]
+    // Live GPS for the current_location tool, when a fix is available (see
+    // LocationProvider). Omitted (rather than sent as 0,0 or similar) when
+    // permission isn't granted or no fix arrives in time — the backend falls
+    // back to the home-LAN heuristic in that case.
+    let lat: Double?
+    let lon: Double?
 }
 
 /// A change Jarvis proposed but didn't apply — queued for approval (a foreign-

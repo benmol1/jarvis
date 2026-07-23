@@ -211,14 +211,18 @@ Unplanned work: give Jarvis travel times and real locations so it can plan
       `CLAUDE.md`, with unit tests for the module and the `execute_tool` branches
 - [ ] Enable the Distance Matrix + Places APIs on the key and deploy/verify on
       the Pi (tested locally only so far)
-- [ ] New tool: Ben's current location, for route planning
-  - Reuse the existing home-LAN vs tailnet classification (`classify_connection`
-    in `main.py`, already backing `/health`'s connection-status pill) per
-    request: if the request comes from the home LAN, resolve straight to
-    `JARVIS_HOME_ADDRESS`
-  - Otherwise (tailnet/away) fall back to live GPS from the iOS app — needs a
-    new location permission + the app sending coords with chat requests, and a
-    new field threaded through to the tool
+- [x] New tool: Ben's current location, for route planning
+  - Backend: new `current_location` tool. Precedence in `_current_location()`:
+    live GPS from the request wins when present (`ChatRequest.lat`/`lon`,
+    accurate anywhere); otherwise, if `classify_connection` (the same check
+    backing `/health`'s connection pill) says the request came over the home
+    LAN, resolve to `JARVIS_HOME_ADDRESS`; otherwise unknown — Jarvis is told
+    to ask Ben rather than guess
+  - iOS: new `LocationProvider` (one-shot `CLLocationManager.requestLocation`,
+    not continuous tracking — Jarvis only needs a fix at send time). Added
+    `NSLocationWhenInUseUsageDescription`; `ChatViewModel` attaches the fix to
+    `ChatRequestBody.lat`/`lon` when one arrives within a few seconds, sending
+    neither field otherwise so the backend's LAN fallback applies
 - [ ] Feature: stamp "Location added at: DD/MM/YY HH:MM" whenever a location
       is set/changed (`create_event`, `modify_event`, `add_route_to_event`)
   - Apply to foreign (non-Jarvis-owned) events too, once the change is

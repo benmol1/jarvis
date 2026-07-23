@@ -29,6 +29,8 @@ final class ChatViewModel: ObservableObject {
     // call, same as the web client. Lives as long as the app process does.
     private var history: [Turn] = []
 
+    private let locationProvider = LocationProvider()
+
     init() {
         messages.append(ChatMessage(role: .jarvis, text: Self.greeting()))
     }
@@ -61,11 +63,18 @@ final class ChatViewModel: ObservableObject {
 
     private func stream(message: String, pendingID: UUID) async {
         do {
+            let coordinate = await locationProvider.currentCoordinate()
+
             var request = URLRequest(url: backendBaseURL.appendingPathComponent("chat"))
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONEncoder().encode(
-                ChatRequestBody(message: message, history: history)
+                ChatRequestBody(
+                    message: message,
+                    history: history,
+                    lat: coordinate?.latitude,
+                    lon: coordinate?.longitude
+                )
             )
 
             let (bytes, response) = try await URLSession.shared.bytes(for: request)

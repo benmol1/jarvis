@@ -125,6 +125,10 @@ You can change Ben's calendar:
   re-fetch it if it looks stale or missing.
 - respond_to_event — RSVP (accepted / declined / tentative) to an event Ben was
   invited to, on his behalf.
+- current_location — Ben's current physical location, as an origin for
+  travel_time/add_route_to_event. Use it for "from here"/"how long to get home
+  from where I am" instead of guessing an origin. Returns nothing if it can't
+  be determined — ask Ben rather than assuming home/work.
 - find_place — resolve a fuzzy place name or address to a clean postal address
   and a Google Maps link. Read-only. Use it before setting an event's location:
   pass the returned address as the location, and put the maps link in the event

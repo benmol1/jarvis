@@ -169,6 +169,49 @@ def test_health_reports_tailnet_connection():
     assert res.json()["connection"] == "tailnet"
 
 
+# --- current_location tool -------------------------------------------------
+
+
+def test_current_location_prefers_live_gps(monkeypatch):
+    monkeypatch.setenv("JARVIS_HOME_ADDRESS", "1 Acacia Ave, Guildford")
+    req = main.ChatRequest(message="x", lat=51.5, lon=-0.1)
+
+    # GPS wins even when also on the home LAN — it's the more precise signal.
+    assert main._current_location(req, "local") == "51.5,-0.1"
+
+
+def test_current_location_falls_back_to_home_on_lan_without_gps(monkeypatch):
+    monkeypatch.setenv("JARVIS_HOME_ADDRESS", "1 Acacia Ave, Guildford")
+    req = main.ChatRequest(message="x")
+
+    assert main._current_location(req, "local") == "1 Acacia Ave, Guildford"
+
+
+def test_current_location_unknown_away_without_gps():
+    req = main.ChatRequest(message="x")
+
+    assert main._current_location(req, "tailnet") is None
+    assert main._current_location(req, "unknown") is None
+
+
+def test_current_location_tool_returns_the_resolved_location():
+    state = _state()
+    result = main.execute_tool(
+        "current_location", {}, state, {"draft": False, "current_location": "51.5,-0.1"}
+    )
+
+    assert result == "51.5,-0.1"
+
+
+def test_current_location_tool_reports_when_unknown():
+    state = _state()
+    result = main.execute_tool(
+        "current_location", {}, state, {"draft": False, "current_location": None}
+    )
+
+    assert "isn't known" in result
+
+
 def test_chat_survives_a_failing_integration(monkeypatch):
     """An expired calendar token must cost us the calendar, not the chat."""
     main.client.messages.create = MagicMock(return_value=_text_response("still here"))
