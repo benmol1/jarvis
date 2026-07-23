@@ -1,6 +1,6 @@
 # Jarvis — TODO
 
-*Last updated: 2026-07-23*
+*Last updated: 2026-07-23 12:29*
 
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
@@ -98,7 +98,7 @@ Unplanned work, triggered by finding `/chat` returning a 500 while `/health` sta
 - [x] Verify the new image builds and `/chat` still answers
   - Built and deployed on the Pi: `uv sync --frozen` resolves on ARM, service serves from it
 
-## Phase 1 — Read-only proposed plan ⏳ IN PROGRESS
+## Phase 1 — Read-only proposed plan ✅ COMPLETE
 
 The core value, zero write risk.
 
@@ -124,13 +124,8 @@ The core value, zero write risk.
 - [x] Trello **read** tool for Claude (fetch cards/lists)
 - [x] Rolling-state store (yesterday's plan, what slipped, carried-forward priorities)
 - [x] System prompt assembles: profile + rolling state + live calendar + Trello
-- [ ] Morning conversation produces a **proposed** time-boxed plan (text only, no writes)
-  - TODO: Update prompt.py to instruct Claude to output structured plan
-  - TODO: Add plan parsing to extract time-boxes from Claude response
-- [ ] Display the proposed plan clearly in the app
-  - TODO: Update iOS ContentView with dedicated plan display
 
-## Phase 2 — Calendar writes + message drafts ⏳ IN PROGRESS
+## Phase 2 — Calendar writes + message drafts  ✅ COMPLETE
 
 Act on the plan once trusted. Hybrid trust model: Jarvis freely
 creates/moves/deletes its **own** tagged events; moving/deleting **anyone
@@ -184,7 +179,7 @@ else's** event is queued for Ben's approval in the app.
 - [x] iOS: mirror the approval/copy view (done in Phase 2.5 — iOS Interface)
 - [x] Deploy and verify on the Pi (tested locally only so far)
 
-## Google Maps integration ⏳ IN PROGRESS
+## Google Maps integration  ✅ COMPLETE
 
 Unplanned work: give Jarvis travel times and real locations so it can plan
 "when to leave" and attach directions to events (`backend/maps_tool.py`).
@@ -209,8 +204,8 @@ Unplanned work: give Jarvis travel times and real locations so it can plan
 - [x] Plain `GOOGLE_MAPS_API_KEY` auth (no OAuth, no new refresh token);
       documented in `.env.example`, wired into the tool loop, prompt, and
       `CLAUDE.md`, with unit tests for the module and the `execute_tool` branches
-- [ ] Enable the Distance Matrix + Places APIs on the key and deploy/verify on
-      the Pi (tested locally only so far)
+- [x] Enable the Distance Matrix + Places APIs on the key and deploy/verify on
+      the Pi
 - [x] New tool: Ben's current location, for route planning
   - Backend: new `current_location` tool. Precedence in `_current_location()`:
     live GPS from the request wins when present (`ChatRequest.lat`/`lon`,
@@ -351,6 +346,14 @@ Not building: an in-app calendar/Trello view. Jarvis's writes already show up in
 - [ ] Gmail drafts instead of copy/paste messages
 - [ ] Swap Claude Haiku for another model (possibly open-source)
 - [ ] Decide on Apple Developer account ($99/yr recommended) for long-lived installs
+- [ ] Workout tracker: chat to Jarvis for a couple of minutes after each
+      gym/run/row session, have him interpret and store the data, so it can be
+      plotted and analysed later
+- [ ] Persistent modifiable memory for Jarvis (e.g. tell him where my sister's
+      house is once, he remembers it in future conversations)
+- [ ] Infrastructure: solve/automate the 7-day OAuth-style timeout on the iOS
+      app deploy (dev cert / provisioning profile expiring, requiring
+      re-trust on-device)
 
 ## Bug fixes ⏳ IN PROGRESS
 
