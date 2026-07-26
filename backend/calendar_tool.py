@@ -311,11 +311,16 @@ def copy_event(calendar_id: str, event_id: str, destination_calendar_id: str) ->
     service = get_calendar_service()
     src = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
     created_at = _now_stamp()
+    jarvis_note = f"{JARVIS_TAG} - created at: {created_at}"
+    src_description = src.get("description", "")
+    description = f"{src_description}\n\n{jarvis_note}".strip() if src_description else jarvis_note
     body = {
         "summary": src.get("summary", "(no title)"),
-        "description": f"{JARVIS_TAG} - created at: {created_at}",
+        "description": description,
         # Copy start/end verbatim so all-day vs timed and timezone are preserved.
         "start": src["start"],
         "end": src["end"],
     }
+    if src.get("location"):
+        body["location"] = src["location"]
     return service.events().insert(calendarId=destination_calendar_id, body=body).execute()
