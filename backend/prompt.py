@@ -32,6 +32,8 @@ def build_system_prompt(
         "\n".join(
             f"- {e['start']}: {e['summary']}"
             + (f" [{e['calendar']}]" if e.get("calendar") else "")
+            + (" [FREE]" if not e.get("busy", True) else "")
+            + (f" [{e['color']}]" if e.get("color") else "")
             + f" (event_id={e.get('id')}, calendar_id={e.get('calendar_id')})"
             + (" — created by Jarvis" if e.get("jarvis") else "")
             for e in events
@@ -56,7 +58,10 @@ Current date and time: {now_line}
 ## Rolling state
 {state_lines}
 
-## Upcoming calendar events (next 14 days only — use list_events for anything further out)
+## Calendar events (past 3 days and next 14 days only — use list_events for anything further out)
+Events tagged [FREE] show as free/available in the Calendar UI — they're informational
+only (e.g. someone else's reminder) and never count as a diary clash. A tag like
+[Tomato] is the event's colour in the Calendar UI, when it has one set.
 {event_lines}
 
 ## Trello cards
@@ -143,6 +148,9 @@ Clashes: overlapping events on the Joint calendar are fine — that calendar is
 shared and double-booking there isn't a problem worth flagging. Overlapping
 events on Ben's Personal calendar ARE a problem — always flag the clash and
 check with Ben before creating or moving something into a conflict there.
+An event marked [FREE] is never a clash, on any calendar — it's shown as
+available in the Calendar UI, so treat it as informational context only and
+don't warn about overlapping it.
 
 When a change affects other people, write a short draft message Ben can copy and
 send himself — never send anything yourself.

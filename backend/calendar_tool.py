@@ -17,6 +17,36 @@ _META_RE = re.compile(
     r"(?:\s*-\s*modified at:\s*(?P<modified>\d{2}/\d{2}/\d{2} \d{2}:\d{2}))?"
 )
 
+# Google's fixed event colour palette (colorId -> the name shown in the
+# Calendar UI's colour picker). Static and documented at
+# https://developers.google.com/calendar/api/v3/reference/colors — safe to
+# hardcode rather than calling colors().get() on every request.
+EVENT_COLOR_NAMES = {
+    "1": "Lavender",
+    "2": "Sage",
+    "3": "Grape",
+    "4": "Flamingo",
+    "5": "Banana",
+    "6": "Tangerine",
+    "7": "Peacock",
+    "8": "Graphite",
+    "9": "Blueberry",
+    "10": "Basil",
+    "11": "Tomato",
+}
+
+
+def _is_busy(event: dict) -> bool:
+    """Free/busy status as shown in the Calendar UI. Google omits
+    `transparency` entirely for the (busy) default, so absence means busy."""
+    return event.get("transparency", "opaque") != "transparent"
+
+
+def _color_name(event: dict) -> str | None:
+    """The event's colour override, or None if it's just using its
+    calendar's default colour."""
+    return EVENT_COLOR_NAMES.get(event.get("colorId"))
+
 
 def _now_stamp() -> str:
     return datetime.now().strftime("%d/%m/%y %H:%M")
@@ -72,9 +102,14 @@ def _is_jarvis(event: dict) -> bool:
     return JARVIS_TAG in (event.get("description") or "")
 
 
-def get_upcoming_events(days: int = 14) -> list[dict]:
+def get_upcoming_events(days: int = 14, lookback_days: int = 3) -> list[dict]:
+    """Default prompt-context window: a few days of recent history (so Jarvis
+    knows what's already happened today) plus the upcoming lookahead."""
     now = datetime.now(UTC)
-    return get_events_in_range(now.isoformat(), (now + timedelta(days=days)).isoformat())
+    return get_events_in_range(
+        (now - timedelta(days=lookback_days)).isoformat(),
+        (now + timedelta(days=days)).isoformat(),
+    )
 
 
 def get_events_in_range(time_min: str, time_max: str) -> list[dict]:
@@ -111,6 +146,8 @@ def get_events_in_range(time_min: str, time_max: str) -> list[dict]:
                     "start": event["start"].get("dateTime", event["start"].get("date")),
                     "end": event["end"].get("dateTime", event["end"].get("date")),
                     "jarvis": _is_jarvis(event),
+                    "busy": _is_busy(event),
+                    "color": _color_name(event),
                 }
             )
 
@@ -145,6 +182,8 @@ def get_event(calendar_id: str, event_id: str) -> dict:
         "location": event.get("location"),
         "description": body,
         "jarvis": _is_jarvis(event),
+        "busy": _is_busy(event),
+        "color": _color_name(event),
     }
 
 
@@ -167,9 +206,13 @@ def create_event(
     location: str | None = None,
     description: str | None = None,
     attendees: list[str] | None = None,
+    busy: bool = True,
+    color_id: str | None = None,
 ) -> dict:
     """Create a Jarvis-owned event. start/end are ISO 8601 with offset. When
-    attendees are given, invites are actually emailed (sendUpdates=all)."""
+    attendees are given, invites are actually emailed (sendUpdates=all).
+    busy=False marks it "free" in the Calendar UI — informational, not a
+    diary clash. color_id is one of EVENT_COLOR_NAMES's keys."""
     service = get_calendar_service()
     body = {
         "summary": summary,
@@ -181,10 +224,17 @@ def create_event(
         body["location"] = location
     if attendees:
         body["attendees"] = [{"email": e} for e in attendees]
+    if not busy:
+        body["transparency"] = "transparent"
+    if color_id:
+        body["colorId"] = color_id
     kwargs = {"calendarId": calendar_id, "body": body}
     if attendees:
         kwargs["sendUpdates"] = "all"
-    return service.events().insert(**kwargs).execute()
+    result = service.events().insert(**kwargs).execute()
+    result["busy"] = _is_busy(result)
+    result["color"] = _color_name(result)
+    return result
 
 
 def modify_event(
@@ -196,11 +246,15 @@ def modify_event(
     location: str | None = None,
     description: str | None = None,
     attendees: list[str] | None = None,
+    busy: bool | None = None,
+    color_id: str | None = None,
 ) -> dict:
     """Patch any subset of an event's fields. On a Jarvis-owned event the
     description keeps its original "created at" and gains a fresh "modified at"
     stamp. A foreign event (no tag) is never stamped — that would silently flip
-    ownership and let Jarvis mutate it without approval afterwards."""
+    ownership and let Jarvis mutate it without approval afterwards.
+    busy=False marks it "free" in the Calendar UI — informational, not a diary
+    clash. color_id is one of EVENT_COLOR_NAMES's keys."""
     service = get_calendar_service()
     existing = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
     is_jarvis = _is_jarvis(existing)
@@ -216,6 +270,10 @@ def modify_event(
         body["location"] = location
     if attendees is not None:
         body["attendees"] = [{"email": e} for e in attendees]
+    if busy is not None:
+        body["transparency"] = "opaque" if busy else "transparent"
+    if color_id is not None:
+        body["colorId"] = color_id
 
     if is_jarvis:
         created, existing_body = _split_description(existing.get("description"))
@@ -227,7 +285,10 @@ def modify_event(
     kwargs = {"calendarId": calendar_id, "eventId": event_id, "body": body}
     if attendees is not None:
         kwargs["sendUpdates"] = "all"
-    return service.events().patch(**kwargs).execute()
+    result = service.events().patch(**kwargs).execute()
+    result["busy"] = _is_busy(result)
+    result["color"] = _color_name(result)
+    return result
 
 
 def respond_to_event(calendar_id: str, event_id: str, response: str) -> dict:
@@ -282,4 +343,12 @@ def copy_event(calendar_id: str, event_id: str, destination_calendar_id: str) ->
         "start": src["start"],
         "end": src["end"],
     }
-    return service.events().insert(calendarId=destination_calendar_id, body=body).execute()
+    # Carry over free/busy and colour so the copy looks the same in the UI.
+    if "transparency" in src:
+        body["transparency"] = src["transparency"]
+    if "colorId" in src:
+        body["colorId"] = src["colorId"]
+    result = service.events().insert(calendarId=destination_calendar_id, body=body).execute()
+    result["busy"] = _is_busy(result)
+    result["color"] = _color_name(result)
+    return result

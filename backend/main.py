@@ -90,6 +90,22 @@ TOOLS = [
                     "items": {"type": "string"},
                     "description": "Email addresses to invite. Adding any queues for approval.",
                 },
+                "busy": {
+                    "type": "boolean",
+                    "description": (
+                        "Whether this shows as busy in the Calendar UI. Default true. Set "
+                        "false for an informational/FYI event (e.g. someone else's "
+                        "reminder) that should never count as a diary clash."
+                    ),
+                },
+                "color_id": {
+                    "type": "string",
+                    "description": (
+                        "Event colour override, by id: "
+                        + ", ".join(f"{k}={v}" for k, v in calendar_tool.EVENT_COLOR_NAMES.items())
+                        + ". Omit to use the calendar's default colour."
+                    ),
+                },
             },
             "required": ["summary", "start", "end"],
         },
@@ -116,6 +132,21 @@ TOOLS = [
                     "type": "array",
                     "items": {"type": "string"},
                     "description": "Email addresses to invite. Setting any queues for approval.",
+                },
+                "busy": {
+                    "type": "boolean",
+                    "description": (
+                        "Whether this shows as busy in the Calendar UI. Set false to mark it "
+                        "informational/FYI so it never counts as a diary clash."
+                    ),
+                },
+                "color_id": {
+                    "type": "string",
+                    "description": (
+                        "Event colour override, by id: "
+                        + ", ".join(f"{k}={v}" for k, v in calendar_tool.EVENT_COLOR_NAMES.items())
+                        + "."
+                    ),
                 },
             },
             "required": ["event_id", "calendar_id"],
@@ -363,7 +394,16 @@ def _far_out(start: str) -> bool:
 # Fields modify_event may carry through to calendar_tool.modify_event / an
 # approval payload. Kept in one place so the tool, the queue item and /apply
 # stay in sync.
-_MODIFY_FIELDS = ("start", "end", "title", "location", "description", "attendees")
+_MODIFY_FIELDS = (
+    "start",
+    "end",
+    "title",
+    "location",
+    "description",
+    "attendees",
+    "busy",
+    "color_id",
+)
 
 # Prefix of the route block add_route_to_event writes into an event description.
 # Used to strip a stale block before re-writing, so re-planning replaces the
@@ -433,13 +473,21 @@ def execute_tool(name: str, inp: dict, state: dict, flags: dict) -> str:
                     "location": inp.get("location"),
                     "description": inp.get("description"),
                     "attendees": inp["attendees"],
+                    "busy": inp.get("busy", True),
+                    "color_id": inp.get("color_id"),
                     "label": label,
                 }
             )
             return f"Queued for Ben's approval: {label}. Not yet applied."
         warning = ""
         if _far_out(inp["start"]):
-            conflicts = calendar_tool.find_conflicts(inp["start"], inp["end"])
+            # Events marked "free" (busy=False) are informational only and
+            # never count as a diary clash.
+            conflicts = [
+                c
+                for c in calendar_tool.find_conflicts(inp["start"], inp["end"])
+                if c.get("busy", True)
+            ]
             if conflicts:
                 names = ", ".join(f"{c['summary']} ({c['start']})" for c in conflicts)
                 warning = f" Warning: overlaps existing event(s): {names}."
@@ -450,6 +498,8 @@ def execute_tool(name: str, inp: dict, state: dict, flags: dict) -> str:
             inp.get("calendar_id", "primary"),
             location=inp.get("location"),
             description=inp.get("description"),
+            busy=inp.get("busy", True),
+            color_id=inp.get("color_id"),
         )
         return f"Created '{inp['summary']}' ({inp['start']} to {inp['end']}).{warning}"
 
@@ -731,6 +781,10 @@ class ApplyRequest(BaseModel):
     description: str | None = None
     attendees: list[str] | None = None
     destination_calendar_id: str | None = None
+    # None = unspecified: create_event treats that as busy (its own default);
+    # modify_event treats it as "leave unchanged".
+    busy: bool | None = None
+    color_id: str | None = None
 
 
 @app.post("/apply")
@@ -745,6 +799,8 @@ def apply(req: ApplyRequest) -> dict:
             location=req.location,
             description=req.description,
             attendees=req.attendees,
+            busy=req.busy if req.busy is not None else True,
+            color_id=req.color_id,
         )
     elif req.action == "modify_event":
         calendar_tool.modify_event(
@@ -756,6 +812,8 @@ def apply(req: ApplyRequest) -> dict:
             location=req.location,
             description=req.description,
             attendees=req.attendees,
+            busy=req.busy,
+            color_id=req.color_id,
         )
     elif req.action == "delete_event":
         calendar_tool.delete_event(req.calendar_id, req.event_id)
