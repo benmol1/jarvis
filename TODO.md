@@ -1,6 +1,6 @@
 # Jarvis — TODO
 
-*Last updated: 2026-07-21 18:02*
+*Last updated: 2026-07-27 15:30*
 
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
@@ -124,6 +124,9 @@ The core value, zero write risk.
 - [x] Trello **read** tool for Claude (fetch cards/lists)
 - [x] Rolling-state store (yesterday's plan, what slipped, carried-forward priorities)
 - [x] System prompt assembles: profile + rolling state + live calendar + Trello
+- [x] Widen the default calendar context to include recent history (past 3
+      days) alongside the 14-day lookahead, so Jarvis has context on what's
+      already happened today, not just what's ahead (`get_upcoming_events`)
 - [ ] Morning conversation produces a **proposed** time-boxed plan (text only, no writes)
   - TODO: Update prompt.py to instruct Claude to output structured plan
   - TODO: Add plan parsing to extract time-boxes from Claude response
@@ -182,6 +185,12 @@ else's** event is queued for Ben's approval in the app.
     clean postal address + Maps link, and `add_route_to_event` sets the event
     location outright (see "Google Maps integration")
 - [x] iOS: mirror the approval/copy view (done in Phase 2.5 — iOS Interface)
+- [x] Surface free/busy status and the Calendar UI colour on every event
+      (`get_event`, `get_events_in_range`, `create_event`, `modify_event`,
+      `copy_event`); `create_event`/`modify_event` can also set them
+      (`busy`, `color_id`). An event marked free (`[FREE]` in the prompt) is
+      informational only — the system prompt and the far-out conflict check
+      both treat it as never being a diary clash.
 - [ ] Deploy and verify on the Pi (tested locally only so far)
 
 ## Google Maps integration ⏳ IN PROGRESS
@@ -321,6 +330,7 @@ Not building: an in-app calendar/Trello view. Jarvis's writes already show up in
 
 ## Later — earn-their-place TODOs
 
+- [ ] Test how JARVIS performs with a Sonnet instead of a Haiku brain
 - [ ] Realtime cloud voice API (nicer, customisable voice) instead of Apple TTS
 - [ ] Work calendar via Microsoft Graph / Outlook (security permitting)
 - [ ] Gmail drafts instead of copy/paste messages

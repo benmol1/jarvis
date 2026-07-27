@@ -1,2 +1,2 @@
-1. No modify_event tool
+
 2. Weird interpretation of "weekend" - should always be Saturday and Sunday in current timezone (BST vs GMT confusion I suspect)
