@@ -2,13 +2,14 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var viewModel = ChatViewModel()
+    @StateObject private var connectionMonitor = ConnectionMonitor()
 
     var body: some View {
         ZStack {
             background
 
             VStack(spacing: 0) {
-                HeaderView(activity: viewModel.headerActivity)
+                HeaderView(activity: viewModel.headerActivity, connection: connectionMonitor.status)
 
                 ScrollViewReader { proxy in
                     ScrollView {

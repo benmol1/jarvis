@@ -1,3 +1,4 @@
+import ipaddress
 import json
 import logging
 import os
@@ -6,7 +7,7 @@ from uuid import uuid4
 
 from anthropic import Anthropic
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -41,10 +42,42 @@ def fetch_context(fetch, source: str) -> list[dict]:
         return []
 
 
+# Tailscale's carrier-grade-NAT ranges — not RFC1918, so Python's
+# ipaddress.is_private doesn't flag them, but they're exactly how a tailnet
+# peer's source IP looks from here.
+_TAILSCALE_RANGES = (
+    ipaddress.ip_network("100.64.0.0/10"),
+    ipaddress.ip_network("fd7a:115c:a1e0::/48"),
+)
+
+
+def classify_connection(client_host: str | None) -> str:
+    """Classify how a request reached us from its source IP: over Ben's home
+    LAN, over the Tailscale tailnet, or something else (shouldn't normally
+    happen — nothing is port-forwarded to the internet)."""
+    if not client_host:
+        return "unknown"
+    try:
+        addr = ipaddress.ip_address(client_host)
+    except ValueError:
+        return "unknown"
+    if any(addr in net for net in _TAILSCALE_RANGES):
+        return "tailnet"
+    if addr.is_private:
+        return "local"
+    return "unknown"
+
+
 @app.get("/health")
-def health():
-    """Health check endpoint for Docker/Kubernetes."""
-    return {"status": "healthy", "service": "jarvis-backend"}
+def health(request: Request):
+    """Health check endpoint for Docker/Kubernetes, and the connection-status
+    read the iOS/web headers poll to show local vs tailnet vs offline."""
+    client_host = request.client.host if request.client else None
+    return {
+        "status": "healthy",
+        "service": "jarvis-backend",
+        "connection": classify_connection(client_host),
+    }
 
 
 class Turn(BaseModel):
@@ -58,6 +91,23 @@ class ChatRequest(BaseModel):
     # and replays it each call — the LLM API is stateless, so there's nothing
     # to store server-side. Absent (e.g. the iOS app) = single-turn as before.
     history: list[Turn] = []
+    # Live GPS from the iOS app, for the current_location tool. Omitted by the
+    # web client and whenever iOS has no location permission/fix — the home-LAN
+    # fallback in _current_location() covers the common case where this is absent.
+    lat: float | None = None
+    lon: float | None = None
+
+
+def _current_location(req: ChatRequest, connection: str) -> str | None:
+    """Where Ben is right now, for the current_location tool. Live GPS from the
+    request wins when present (accurate anywhere); otherwise, if the request
+    reached us over the home LAN, he's home. No other way to tell — the tailnet
+    case without GPS stays unknown rather than guessing."""
+    if req.lat is not None and req.lon is not None:
+        return f"{req.lat},{req.lon}"
+    if connection == "local":
+        return maps_tool.saved_locations().get("home")
+    return None
 
 
 # Tools Claude may call. Jarvis freely mutates its own tagged events; moving or
@@ -254,6 +304,17 @@ TOOLS = [
             },
             "required": ["query"],
         },
+    },
+    {
+        "name": "current_location",
+        "description": (
+            "Ben's current physical location, as an origin you can pass straight to "
+            "travel_time/add_route_to_event. Use this for 'from here'/'how long to "
+            "get home from where I am' style questions, instead of guessing an "
+            "origin. Read-only, no input. Returns nothing if his location can't be "
+            "determined right now — ask him directly rather than assuming home/work."
+        ),
+        "input_schema": {"type": "object", "properties": {}},
     },
     {
         "name": "travel_time",
@@ -582,6 +643,8 @@ def execute_tool(name: str, inp: dict, state: dict, flags: dict) -> str:
         return "\n".join(
             f"{e['start']} to {e['end']}: {e['summary']} ({e['calendar']}) "
             f"(event_id={e['id']}, calendar_id={e['calendar_id']})"
+            + (f"\n  location: {e['location']}" if e.get("location") else "")
+            + (f"\n  description: {e['description']}" if e.get("description") else "")
             for e in events
         )
 
@@ -594,6 +657,12 @@ def execute_tool(name: str, inp: dict, state: dict, flags: dict) -> str:
     if name == "respond_to_event":
         calendar_tool.respond_to_event(inp["calendar_id"], inp["event_id"], inp["response"])
         return f"Responded '{inp['response']}' to the event."
+
+    if name == "current_location":
+        location = flags.get("current_location")
+        if not location:
+            return "Ben's current location isn't known right now — ask him if you need it."
+        return location
 
     if name == "find_place":
         place = maps_tool.find_place(inp["query"])
@@ -692,7 +761,7 @@ def execute_tool(name: str, inp: dict, state: dict, flags: dict) -> str:
     return f"Error: unknown tool {name}"
 
 
-def run_chat(req: ChatRequest):
+def run_chat(req: ChatRequest, connection: str = "unknown"):
     """Runs the tool-use loop, yielding one NDJSON line per tool call so the
     client can show interim progress, then a final line with the reply."""
     profile = load_profile()
@@ -709,7 +778,7 @@ def run_chat(req: ChatRequest):
     # Approvals persist in state so a later turn (or Ben changing his mind) can
     # see and cancel them; execute_tool mutates state["pending_approvals"].
     state.setdefault("pending_approvals", [])
-    flags = {"draft": False}
+    flags = {"draft": False, "current_location": _current_location(req, connection)}
     response = None
     # Bounded tool-use loop. ponytail: 8 rounds is plenty for a planning turn;
     # bump it if Claude legitimately chains more calls than that.
@@ -762,8 +831,10 @@ def run_chat(req: ChatRequest):
 
 
 @app.post("/chat")
-def chat(req: ChatRequest) -> StreamingResponse:
-    return StreamingResponse(run_chat(req), media_type="application/x-ndjson")
+def chat(req: ChatRequest, request: Request) -> StreamingResponse:
+    client_host = request.client.host if request.client else None
+    connection = classify_connection(client_host)
+    return StreamingResponse(run_chat(req, connection), media_type="application/x-ndjson")
 
 
 class ApplyRequest(BaseModel):

@@ -1,6 +1,6 @@
 # Jarvis — TODO
 
-*Last updated: 2026-07-27 15:30*
+*Last updated: 2026-07-28*
 
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
@@ -98,7 +98,7 @@ Unplanned work, triggered by finding `/chat` returning a 500 while `/health` sta
 - [x] Verify the new image builds and `/chat` still answers
   - Built and deployed on the Pi: `uv sync --frozen` resolves on ARM, service serves from it
 
-## Phase 1 — Read-only proposed plan ⏳ IN PROGRESS
+## Phase 1 — Read-only proposed plan ✅ COMPLETE
 
 The core value, zero write risk.
 
@@ -127,11 +127,6 @@ The core value, zero write risk.
 - [x] Widen the default calendar context to include recent history (past 3
       days) alongside the 14-day lookahead, so Jarvis has context on what's
       already happened today, not just what's ahead (`get_upcoming_events`)
-- [ ] Morning conversation produces a **proposed** time-boxed plan (text only, no writes)
-  - TODO: Update prompt.py to instruct Claude to output structured plan
-  - TODO: Add plan parsing to extract time-boxes from Claude response
-- [ ] Display the proposed plan clearly in the app
-  - TODO: Update iOS ContentView with dedicated plan display
 
 ## Phase 2 — Calendar writes + message drafts ⏳ IN PROGRESS
 
@@ -185,6 +180,7 @@ else's** event is queued for Ben's approval in the app.
     clean postal address + Maps link, and `add_route_to_event` sets the event
     location outright (see "Google Maps integration")
 - [x] iOS: mirror the approval/copy view (done in Phase 2.5 — iOS Interface)
+- [x] Deploy and verify on the Pi (tested locally only so far)
 - [x] Surface free/busy status and the Calendar UI colour on every event
       (`get_event`, `get_events_in_range`, `create_event`, `modify_event`,
       `copy_event`); `create_event`/`modify_event` can also set them
@@ -201,9 +197,10 @@ else's** event is queued for Ben's approval in the app.
   - `create_event`/`modify_event` in `calendar_tool.py` should fall back to
     the table's colour when the caller doesn't pass `color_id` and the
     calendar has an entry
-- [ ] Deploy and verify on the Pi (tested locally only so far)
+- [ ] Deploy and verify the busy/free + colour work on the Pi (tested locally
+      only so far)
 
-## Google Maps integration ⏳ IN PROGRESS
+## Google Maps integration  ✅ COMPLETE
 
 Unplanned work: give Jarvis travel times and real locations so it can plan
 "when to leave" and attach directions to events (`backend/maps_tool.py`).
@@ -228,8 +225,31 @@ Unplanned work: give Jarvis travel times and real locations so it can plan
 - [x] Plain `GOOGLE_MAPS_API_KEY` auth (no OAuth, no new refresh token);
       documented in `.env.example`, wired into the tool loop, prompt, and
       `CLAUDE.md`, with unit tests for the module and the `execute_tool` branches
-- [ ] Enable the Distance Matrix + Places APIs on the key and deploy/verify on
-      the Pi (tested locally only so far)
+- [x] Enable the Distance Matrix + Places APIs on the key and deploy/verify on
+      the Pi
+- [x] New tool: Ben's current location, for route planning
+  - Backend: new `current_location` tool. Precedence in `_current_location()`:
+    live GPS from the request wins when present (`ChatRequest.lat`/`lon`,
+    accurate anywhere); otherwise, if `classify_connection` (the same check
+    backing `/health`'s connection pill) says the request came over the home
+    LAN, resolve to `JARVIS_HOME_ADDRESS`; otherwise unknown — Jarvis is told
+    to ask Ben rather than guess
+  - iOS: new `LocationProvider` (one-shot `CLLocationManager.requestLocation`,
+    not continuous tracking — Jarvis only needs a fix at send time). Added
+    `NSLocationWhenInUseUsageDescription`; `ChatViewModel` attaches the fix to
+    `ChatRequestBody.lat`/`lon` when one arrives within a few seconds, sending
+    neither field otherwise so the backend's LAN fallback applies
+- [x] Feature: stamp "Location added by JARVIS at: DD/MM/YY HH:MM" whenever a location
+      is set/changed (`create_event`, `modify_event`, `add_route_to_event`)
+  - New `_restamp_location()` helper in `calendar_tool.py`: strips any
+    previous "Location added by JARVIS at" line and appends a fresh one whenever
+    `location` is set. Wired into `create_event` and `modify_event`;
+    `add_route_to_event` gets it for free since it's built on `modify_event`
+  - Applies to foreign (non-Jarvis-owned) events too, once the change is
+    approved via `/apply` — unlike the `JARVIS_TAG` created/modified-at line
+    (ownership-carrying, foreign events never get it), the location stamp
+    carries no ownership meaning, so it's safe to add without flipping
+    ownership onto Jarvis
 
 ## Phase 2.5 — iOS Interface (Jarvis HUD) ✅ COMPLETE
 
@@ -313,6 +333,7 @@ The 10-minute ritual feel.
 - [ ] Text-to-speech via `AVSpeechSynthesizer` (spoken replies)
 - [ ] Conversation UI works hands-free (speak → hear response)
 - [ ] Daily morning reminder (local notification)
+- [ ] Tighter integration with Wispr Flow - it's a bit annoying having to shuffle left/right between apps
 
 ## Phase 4 — Desktop web front-end ⏳ IN PROGRESS
 
@@ -341,11 +362,20 @@ Not building: an in-app calendar/Trello view. Jarvis's writes already show up in
 ## Later — earn-their-place TODOs
 
 - [ ] Test how JARVIS performs with a Sonnet instead of a Haiku brain
+- [ ] Give JARVIS an email address so I can forward tasks to him
 - [ ] Realtime cloud voice API (nicer, customisable voice) instead of Apple TTS
 - [ ] Work calendar via Microsoft Graph / Outlook (security permitting)
 - [ ] Gmail drafts instead of copy/paste messages
 - [ ] Swap Claude Haiku for another model (possibly open-source)
 - [ ] Decide on Apple Developer account ($99/yr recommended) for long-lived installs
+- [ ] Workout tracker: chat to Jarvis for a couple of minutes after each
+      gym/run/row session, have him interpret and store the data, so it can be
+      plotted and analysed later
+- [ ] Persistent modifiable memory for Jarvis (e.g. tell him where my sister's
+      house is once, he remembers it in future conversations)
+- [ ] Infrastructure: solve/automate the 7-day OAuth-style timeout on the iOS
+      app deploy (dev cert / provisioning profile expiring, requiring
+      re-trust on-device)
 
 ## Bug fixes ⏳ IN PROGRESS
 
@@ -355,9 +385,37 @@ Not building: an in-app calendar/Trello view. Jarvis's writes already show up in
       calendar tools refactor: `move_event` replaced with `modify_event`,
       which patches any subset of fields (including title) on an event.
 - [ ] The approval message showed a timestamp in a format that's a bit difficult to read - change to YYYY-MM-DD | hh:mm
+- [x] GMT/BST bug: event description timestamps ("created at"/"modified at",
+      `calendar_tool._now_stamp()`) used naive `datetime.now()`, which
+      resolved to raw UTC in the Pi's Docker container (no `TZ` set) — an
+      hour off during BST. Now uses `ZoneInfo(JARVIS_TIMEZONE or
+      "Europe/London")`, matching `prompt.py`'s existing "current time" logic;
+      `copy_event`'s duplicate inline stamp now reuses `_now_stamp()` too
+  - Investigated folding in the "weekend" misinterpretation bug below: found
+    no separate code fix — `prompt.py`'s `now_line` (what Claude is told the
+    current date/day is) has been `ZoneInfo`-correct since date-awareness was
+    added (2026-07-14), so nothing there was mislabeling BST as GMT. If
+    "weekend" confusion recurs after this fix ships, it isn't a timezone
+    labelling bug and needs fresh diagnosis
 - [ ] "Weekend" is sometimes misinterpreted instead of always meaning
       Saturday + Sunday in the current timezone — suspected BST/GMT confusion
-      (logged in `bugs/bug_log.txt`)
+      (logged in `bugs/bug_log.txt`); no code-level cause found so far (see
+      note above) — watch for recurrence after the timestamp fix ships
+- [x] Bug: Jarvis can't read location/description from existing calendar
+      events. `get_events_in_range` (backs `list_events`, the injected prompt
+      context, and `get_upcoming_events`) only returned
+      id/calendar_id/calendar/summary/start/end/jarvis — location and
+      description were dropped, even though Google returns them and
+      `get_event`/`_split_description` already knew how to extract them
+      (previously only used internally by modify/delete/move). Now
+      `get_events_in_range` includes `location` and `description` (stripped
+      of the Jarvis metadata line) on every event; the ambient 14-day prompt
+      context shows `location` inline (compact, always useful), and the
+      on-demand `list_events` tool result shows both `location` and
+      `description` in full (kept out of the ambient context to avoid
+      bloating every turn with route-block-length descriptions)
+  - Also logged in `bugs/bug_log.txt` ("couldn't read existing event location
+    or the directions embedded into the event description")
 - [x] Desktop redesign PR regressed the chat UI: reverted the NDJSON stream
       reader back to `res.json()` (broke tool-progress display with a JSON
       parse error) and silently dropped the `addCopyButton`/`renderApprovals`

@@ -31,6 +31,11 @@ targets:
         # Pi backend is plain HTTP over the private tailnet, so allow it.
         NSAppTransportSecurity:
           NSAllowsArbitraryLoads: true
+        # For the current_location tool (route planning "from here"), used only
+        # while the app is open to attach a fix to the outgoing chat message.
+        NSLocationWhenInUseUsageDescription: >-
+          Jarvis uses your current location for route planning when you ask
+          questions like "how long to get home from here".
         # Jarvis Interface (Mark I) HUD faces — see DESIGN.md visual identity.
         UIAppFonts:
           - Orbitron-Medium.ttf

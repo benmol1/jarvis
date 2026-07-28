@@ -128,6 +128,90 @@ def test_chat_forwards_history_for_session_memory():
     ]
 
 
+# --- /health connection classification -----------------------------------
+
+
+@pytest.mark.parametrize(
+    "client_host,expected",
+    [
+        ("192.168.1.42", "local"),
+        ("10.0.0.5", "local"),
+        ("172.16.0.5", "local"),
+        ("127.0.0.1", "local"),
+        ("100.64.0.1", "tailnet"),
+        ("100.100.100.100", "tailnet"),
+        ("fd7a:115c:a1e0:ab12::1", "tailnet"),
+        ("8.8.8.8", "unknown"),
+        (None, "unknown"),
+        ("not-an-ip", "unknown"),
+    ],
+)
+def test_classify_connection(client_host, expected):
+    assert main.classify_connection(client_host) == expected
+
+
+def test_health_reports_connection_from_request_ip():
+    local_client = TestClient(main.app, client=("192.168.1.42", 12345))
+    res = local_client.get("/health")
+
+    assert res.status_code == 200
+    assert res.json() == {
+        "status": "healthy",
+        "service": "jarvis-backend",
+        "connection": "local",
+    }
+
+
+def test_health_reports_tailnet_connection():
+    tailnet_client = TestClient(main.app, client=("100.101.102.103", 12345))
+    res = tailnet_client.get("/health")
+
+    assert res.json()["connection"] == "tailnet"
+
+
+# --- current_location tool -------------------------------------------------
+
+
+def test_current_location_prefers_live_gps(monkeypatch):
+    monkeypatch.setenv("JARVIS_HOME_ADDRESS", "1 Acacia Ave, Guildford")
+    req = main.ChatRequest(message="x", lat=51.5, lon=-0.1)
+
+    # GPS wins even when also on the home LAN — it's the more precise signal.
+    assert main._current_location(req, "local") == "51.5,-0.1"
+
+
+def test_current_location_falls_back_to_home_on_lan_without_gps(monkeypatch):
+    monkeypatch.setenv("JARVIS_HOME_ADDRESS", "1 Acacia Ave, Guildford")
+    req = main.ChatRequest(message="x")
+
+    assert main._current_location(req, "local") == "1 Acacia Ave, Guildford"
+
+
+def test_current_location_unknown_away_without_gps():
+    req = main.ChatRequest(message="x")
+
+    assert main._current_location(req, "tailnet") is None
+    assert main._current_location(req, "unknown") is None
+
+
+def test_current_location_tool_returns_the_resolved_location():
+    state = _state()
+    result = main.execute_tool(
+        "current_location", {}, state, {"draft": False, "current_location": "51.5,-0.1"}
+    )
+
+    assert result == "51.5,-0.1"
+
+
+def test_current_location_tool_reports_when_unknown():
+    state = _state()
+    result = main.execute_tool(
+        "current_location", {}, state, {"draft": False, "current_location": None}
+    )
+
+    assert "isn't known" in result
+
+
 def test_chat_survives_a_failing_integration(monkeypatch):
     """An expired calendar token must cost us the calendar, not the chat."""
     main.client.messages.create = MagicMock(return_value=_text_response("still here"))
@@ -236,6 +320,62 @@ def test_create_event_does_not_warn_on_free_conflict_far_out(monkeypatch):
     )
 
     assert "Warning" not in result
+
+
+def test_list_events_includes_location_and_description(monkeypatch):
+    """Regression test: Jarvis previously had no way to see an existing event's
+    location or description, since list_events dropped both fields."""
+    monkeypatch.setattr(
+        main.calendar_tool,
+        "get_events_in_range",
+        lambda start, end: [
+            {
+                "id": "evt1",
+                "calendar_id": "primary",
+                "calendar": "Personal",
+                "summary": "Dentist",
+                "start": "2026-07-03T09:00:00Z",
+                "end": "2026-07-03T09:30:00Z",
+                "location": "123 High St",
+                "description": "Bring insurance card",
+                "jarvis": False,
+            }
+        ],
+    )
+
+    result = main.execute_tool(
+        "list_events", {"start": "S", "end": "E"}, _state(), {"draft": False}
+    )
+
+    assert "location: 123 High St" in result
+    assert "description: Bring insurance card" in result
+
+
+def test_list_events_omits_blank_location_and_description(monkeypatch):
+    monkeypatch.setattr(
+        main.calendar_tool,
+        "get_events_in_range",
+        lambda start, end: [
+            {
+                "id": "evt1",
+                "calendar_id": "primary",
+                "calendar": "Personal",
+                "summary": "Standup",
+                "start": "2026-07-03T09:00:00Z",
+                "end": "2026-07-03T09:15:00Z",
+                "location": None,
+                "description": "",
+                "jarvis": True,
+            }
+        ],
+    )
+
+    result = main.execute_tool(
+        "list_events", {"start": "S", "end": "E"}, _state(), {"draft": False}
+    )
+
+    assert "location:" not in result
+    assert "description:" not in result
 
 
 def test_modify_jarvis_event_applies_immediately(monkeypatch):

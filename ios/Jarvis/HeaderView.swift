@@ -1,13 +1,14 @@
 import SwiftUI
 
 /// Matches the web client's `<header>`: spinning arc-reactor mark, glowing
-/// "JARVIS" wordmark, and a breathing "Online" status pill.
+/// "JARVIS" wordmark, and a status pill showing local/tailnet/offline.
 ///
 /// The mark itself tracks `activity` so it mirrors whichever ring the active
 /// message bubble is showing (standby/thinking/processing) — same 34pt slot
 /// regardless of which one is on screen, so the header never jumps.
 struct HeaderView: View {
     var activity: HeaderActivity = .standby
+    var connection: ConnectionStatus = .offline
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var breathe: Double = 0.45
@@ -33,16 +34,24 @@ struct HeaderView: View {
             Spacer()
 
             HStack(spacing: 8) {
-                Circle()
-                    .fill(Color.jarvisCyan)
-                    .frame(width: 7, height: 7)
-                    .cyanGlow(radiusSmall: 2, radiusLarge: 5)
-                    .opacity(breathe)
-                Text("ONLINE")
+                if connection == .offline {
+                    Circle()
+                        .fill(Color.jarvisAlert)
+                        .frame(width: 7, height: 7)
+                } else {
+                    Circle()
+                        .fill(Color.jarvisCyan)
+                        .frame(width: 7, height: 7)
+                        .cyanGlow(radiusSmall: 2, radiusLarge: 5)
+                        .opacity(breathe)
+                }
+                Text(connection.label)
                     .font(JarvisFont.data(9, weight: .medium))
                     .tracking(2)
+                    .multilineTextAlignment(.leading)
+                    .lineSpacing(1)
             }
-            .foregroundStyle(Color.jarvisCyan)
+            .foregroundStyle(connection == .offline ? Color.jarvisAlert : Color.jarvisCyan)
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 12)

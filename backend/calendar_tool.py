@@ -1,6 +1,7 @@
 import os
 import re
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -48,8 +49,28 @@ def _color_name(event: dict) -> str | None:
     return EVENT_COLOR_NAMES.get(event.get("colorId"))
 
 
+_LOCATION_STAMP_PREFIX = "Location added by JARVIS at:"
+
+
+def _restamp_location(body: str, when: str) -> str:
+    """Replace any previous 'Location added by JARVIS at' line in a description body
+    with a fresh one, so resetting the location doesn't pile up duplicates.
+    Applied regardless of Jarvis ownership — unlike the created/modified-at
+    metadata line, this carries no ownership meaning, so it's safe to add to
+    a foreign event's description without flipping ownership onto Jarvis."""
+    lines = [
+        line for line in body.split("\n") if not line.strip().startswith(_LOCATION_STAMP_PREFIX)
+    ]
+    body = "\n".join(lines).strip()
+    stamp = f"{_LOCATION_STAMP_PREFIX} {when}"
+    return f"{body}\n\n{stamp}" if body else stamp
+
+
 def _now_stamp() -> str:
-    return datetime.now().strftime("%d/%m/%y %H:%M")
+    # Override with JARVIS_TIMEZONE (IANA name) if Ben isn't in the UK — mirrors
+    # prompt.py's "now" so description stamps agree with what Jarvis is told.
+    tz = ZoneInfo(os.environ.get("JARVIS_TIMEZONE", "Europe/London"))
+    return datetime.now(tz).strftime("%d/%m/%y %H:%M")
 
 
 def _compose_description(body: str | None, created_at: str, modified_at: str | None = None) -> str:
@@ -137,6 +158,7 @@ def get_events_in_range(time_min: str, time_max: str) -> list[dict]:
             .execute()
         )
         for event in result.get("items", []):
+            _, body = _split_description(event.get("description"))
             events.append(
                 {
                     "id": event.get("id"),
@@ -145,6 +167,8 @@ def get_events_in_range(time_min: str, time_max: str) -> list[dict]:
                     "summary": event.get("summary", "(no title)"),
                     "start": event["start"].get("dateTime", event["start"].get("date")),
                     "end": event["end"].get("dateTime", event["end"].get("date")),
+                    "location": event.get("location"),
+                    "description": body,
                     "jarvis": _is_jarvis(event),
                     "busy": _is_busy(event),
                     "color": _color_name(event),
@@ -214,9 +238,12 @@ def create_event(
     busy=False marks it "free" in the Calendar UI — informational, not a
     diary clash. color_id is one of EVENT_COLOR_NAMES's keys."""
     service = get_calendar_service()
+    now = _now_stamp()
+    if location:
+        description = _restamp_location(description or "", now)
     body = {
         "summary": summary,
-        "description": _compose_description(description, _now_stamp()),
+        "description": _compose_description(description, now),
         "start": {"dateTime": start},
         "end": {"dateTime": end},
     }
@@ -278,9 +305,18 @@ def modify_event(
     if is_jarvis:
         created, existing_body = _split_description(existing.get("description"))
         new_body = description if description is not None else existing_body
+        if location is not None:
+            new_body = _restamp_location(new_body, _now_stamp())
         body["description"] = _compose_description(new_body, created or _now_stamp(), _now_stamp())
-    elif description is not None:
-        body["description"] = description  # foreign event: leave it unstamped
+    elif description is not None or location is not None:
+        # foreign event: no JARVIS_TAG (that would flip ownership), but the
+        # location stamp itself carries no ownership meaning, so it still
+        # applies here once Ben approves the change.
+        _, existing_body = _split_description(existing.get("description"))
+        new_body = description if description is not None else existing_body
+        if location is not None:
+            new_body = _restamp_location(new_body, _now_stamp())
+        body["description"] = new_body
 
     kwargs = {"calendarId": calendar_id, "eventId": event_id, "body": body}
     if attendees is not None:
@@ -335,14 +371,19 @@ def copy_event(calendar_id: str, event_id: str, destination_calendar_id: str) ->
     The copy is stamped Jarvis-owned so Jarvis can manage it later."""
     service = get_calendar_service()
     src = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
-    created_at = datetime.now().strftime("%d/%m/%y %H:%M")
+    created_at = _now_stamp()
+    jarvis_note = f"{JARVIS_TAG} - created at: {created_at}"
+    src_description = src.get("description", "")
+    description = f"{src_description}\n\n{jarvis_note}".strip() if src_description else jarvis_note
     body = {
         "summary": src.get("summary", "(no title)"),
-        "description": f"{JARVIS_TAG} - created at: {created_at}",
+        "description": description,
         # Copy start/end verbatim so all-day vs timed and timezone are preserved.
         "start": src["start"],
         "end": src["end"],
     }
+    if src.get("location"):
+        body["location"] = src["location"]
     # Carry over free/busy and colour so the copy looks the same in the UI.
     if "transparency" in src:
         body["transparency"] = src["transparency"]

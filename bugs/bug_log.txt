@@ -1,2 +1,3 @@
+23/07/2026 12:30 - I asked JARVIS to copy an event from the personal calendar to joint including all location and description details. He copied the event fine but missed the location and description - not sure why.
 
 2. Weird interpretation of "weekend" - should always be Saturday and Sunday in current timezone (BST vs GMT confusion I suspect)

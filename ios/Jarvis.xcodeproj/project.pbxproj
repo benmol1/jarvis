@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		09E443CAD5DC885C5D960834 /* LocationProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11A74A2D5E5D6CD3781D465 /* LocationProvider.swift */; };
 		350DEB3847E67A2C3768D960 /* ChatModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C509A7599D4F667659CFDE /* ChatModels.swift */; };
 		39578E7747D053984D930B27 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BC0627A0EFD1A8B7C6587D9 /* Theme.swift */; };
 		5E25349CC3262A18DE554A01 /* JarvisApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD65447B9E4C38A85B4132FD /* JarvisApp.swift */; };
@@ -17,6 +18,7 @@
 		82C167427A387D38FA5095A1 /* JetBrainsMono-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2E448D818C06CC329E77DF93 /* JetBrainsMono-Regular.ttf */; };
 		909D853529D3DDD4A03E737B /* JetBrainsMono-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 2A8AF09AE1E2FADA19CEE6DC /* JetBrainsMono-Medium.ttf */; };
 		9E5556E2178AC41017A6BB8A /* Orbitron-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = DAED4EA6ED4E013A474C9EC5 /* Orbitron-Medium.ttf */; };
+		A3B79F78867C98F523DED367 /* ConnectionMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 900E7D8030B29BC86C8775CF /* ConnectionMonitor.swift */; };
 		A929380B18BE429949DC1F84 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48499CCE647006FFF24CB568 /* ContentView.swift */; };
 		D51EDCAAF9B332CEB2D130F5 /* ComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97CBAE1B4A1C5BD8FF678BC0 /* ComposerView.swift */; };
 		D74565500B7A31D023CCAD10 /* ApprovalsBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 370DE88E6F21C63154413B9D /* ApprovalsBubble.swift */; };
@@ -34,7 +36,9 @@
 		4AEC93C05A9272F4D6BA7B3B /* HeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderView.swift; sourceTree = "<group>"; };
 		61C76376F114B708AF2B9EF1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8BC0627A0EFD1A8B7C6587D9 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		900E7D8030B29BC86C8775CF /* ConnectionMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionMonitor.swift; sourceTree = "<group>"; };
 		97CBAE1B4A1C5BD8FF678BC0 /* ComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposerView.swift; sourceTree = "<group>"; };
+		A11A74A2D5E5D6CD3781D465 /* LocationProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationProvider.swift; sourceTree = "<group>"; };
 		B9C509A7599D4F667659CFDE /* ChatModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatModels.swift; sourceTree = "<group>"; };
 		BBCCE25488D36794B3A4BE1E /* JetBrainsMono-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "JetBrainsMono-Bold.ttf"; sourceTree = "<group>"; };
 		BD65447B9E4C38A85B4132FD /* JarvisApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JarvisApp.swift; sourceTree = "<group>"; };
@@ -84,10 +88,12 @@
 				B9C509A7599D4F667659CFDE /* ChatModels.swift */,
 				1C293AAB6EC3E528B1043FF9 /* ChatViewModel.swift */,
 				97CBAE1B4A1C5BD8FF678BC0 /* ComposerView.swift */,
+				900E7D8030B29BC86C8775CF /* ConnectionMonitor.swift */,
 				48499CCE647006FFF24CB568 /* ContentView.swift */,
 				4AEC93C05A9272F4D6BA7B3B /* HeaderView.swift */,
 				D758DDA5F42A49B6CB275DED /* Info.plist */,
 				BD65447B9E4C38A85B4132FD /* JarvisApp.swift */,
+				A11A74A2D5E5D6CD3781D465 /* LocationProvider.swift */,
 				DE69DE59E64B6F50493044DB /* MessageBubble.swift */,
 				8BC0627A0EFD1A8B7C6587D9 /* Theme.swift */,
 				64740947F532AB24F4227662 /* Fonts */,
@@ -176,9 +182,11 @@
 				350DEB3847E67A2C3768D960 /* ChatModels.swift in Sources */,
 				6D8D949EDB0469EB6835E1D6 /* ChatViewModel.swift in Sources */,
 				D51EDCAAF9B332CEB2D130F5 /* ComposerView.swift in Sources */,
+				A3B79F78867C98F523DED367 /* ConnectionMonitor.swift in Sources */,
 				A929380B18BE429949DC1F84 /* ContentView.swift in Sources */,
 				7197AD7A964D6D7E7E073B0B /* HeaderView.swift in Sources */,
 				5E25349CC3262A18DE554A01 /* JarvisApp.swift in Sources */,
+				09E443CAD5DC885C5D960834 /* LocationProvider.swift in Sources */,
 				665DA26755D3450AF1034F94 /* MessageBubble.swift in Sources */,
 				39578E7747D053984D930B27 /* Theme.swift in Sources */,
 			);
