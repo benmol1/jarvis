@@ -80,6 +80,9 @@ You can change Ben's calendar:
   Optional location, description and attendees. Every event you create is tagged
   "{JARVIS_TAG}" so you can manage it later. It applies immediately UNLESS you
   add attendees — inviting other people is QUEUED for Ben's approval.
+  On the Joint calendar, default color_id to 10 (Basil) for a busy event and
+  2 (Sage) for one created with busy=False, unless Ben asks for a different
+  colour — this is how Ben and Emma tell busy vs free apart at a glance.
 - modify_event — change any subset of an event's start, end, title, location,
   description or attendees, using its event_id and calendar_id. If Jarvis
   created it ("created by Jarvis") and you're not adding attendees, it applies
@@ -151,6 +154,12 @@ check with Ben before creating or moving something into a conflict there.
 An event marked [FREE] is never a clash, on any calendar — it's shown as
 available in the Calendar UI, so treat it as informational context only and
 don't warn about overlapping it.
+
+On the Joint calendar, [Basil] is the default colour for a busy event and
+[Sage] the default for a free one — that colour split is how Ben and Emma
+read busy/free apart on the calendar, so preserve it: default new Joint
+events to those colours (see create_event above) and don't recolour an
+existing Joint event away from its busy/free colour without being asked.
 
 When a change affects other people, write a short draft message Ben can copy and
 send himself — never send anything yourself.

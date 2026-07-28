@@ -191,6 +191,16 @@ else's** event is queued for Ben's approval in the app.
       (`busy`, `color_id`). An event marked free (`[FREE]` in the prompt) is
       informational only — the system prompt and the far-out conflict check
       both treat it as never being a diary clash.
+- [ ] Enforce default busy/free colours per calendar in code, not just prompt
+      guidance (currently `prompt.py` just tells Jarvis the Joint calendar's
+      convention — Basil for busy, Sage for free — but nothing stops the
+      model forgetting or omitting `color_id`)
+  - Needs a reference table of calendar → {busy colour, free colour} (starting
+    with Joint: busy=Basil (10), free=Sage (2)); keyed by calendar_id since
+    calendar names aren't stable/unique
+  - `create_event`/`modify_event` in `calendar_tool.py` should fall back to
+    the table's colour when the caller doesn't pass `color_id` and the
+    calendar has an entry
 - [ ] Deploy and verify on the Pi (tested locally only so far)
 
 ## Google Maps integration ⏳ IN PROGRESS
