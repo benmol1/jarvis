@@ -152,7 +152,9 @@ def test_modify_event_jarvis_owned_stamps_location_when_location_changes():
 
     body = mock_service.events.return_value.patch.call_args.kwargs["body"]
     assert "Original notes" in body["description"]
-    assert re.search(r"Location added by JARVIS at: \d{2}/\d{2}/\d{2} \d{2}:\d{2}", body["description"])
+    assert re.search(
+        r"Location added by JARVIS at: \d{2}/\d{2}/\d{2} \d{2}:\d{2}", body["description"]
+    )
 
 
 def test_modify_event_foreign_stamps_location_without_flipping_ownership():
@@ -171,7 +173,9 @@ def test_modify_event_foreign_stamps_location_without_flipping_ownership():
     body = mock_service.events.return_value.patch.call_args.kwargs["body"]
     assert JARVIS_TAG not in body["description"]
     assert "Ben's own notes" in body["description"]
-    assert re.search(r"Location added by JARVIS at: \d{2}/\d{2}/\d{2} \d{2}:\d{2}", body["description"])
+    assert re.search(
+        r"Location added by JARVIS at: \d{2}/\d{2}/\d{2} \d{2}:\d{2}", body["description"]
+    )
 
 
 def test_modify_event_restamping_location_replaces_previous_stamp():

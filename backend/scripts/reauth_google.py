@@ -27,6 +27,10 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 SCOPES = [
     "https://www.googleapis.com/auth/calendar.events",
     "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+    # Inbound email: read the forwarded message and clear its UNREAD label,
+    # then reply. gmail.modify does not cover sending - gmail.send is separate.
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.send",
 ]
 
 # Load backend/.env before reading os.environ below. No-op in Docker, which

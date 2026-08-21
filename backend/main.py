@@ -2,6 +2,7 @@ import ipaddress
 import json
 import logging
 import os
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from uuid import uuid4
 
@@ -13,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import calendar_tool
+import email_poller
 import maps_tool
 from calendar_tool import get_upcoming_events
 from profile_store import load_profile
@@ -24,7 +26,16 @@ from trello_tool import get_cards
 # injects vars via compose's env_file instead.
 load_dotenv()
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Start polling the Jarvis inbox for forwarded email. No-op unless
+    JARVIS_EMAIL_ADDRESS/ALLOWED are set."""
+    email_poller.start(run_chat, ChatRequest)
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 logger = logging.getLogger(__name__)
 
