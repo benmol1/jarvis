@@ -1,6 +1,6 @@
 # Jarvis — TODO
 
-*Last updated: 2026-07-23 12:29*
+*Last updated: 2026-07-28*
 
 Task breakdown for the phases in [DESIGN.md](DESIGN.md). Ship each phase end-to-end
 before starting the next.
@@ -124,8 +124,11 @@ The core value, zero write risk.
 - [x] Trello **read** tool for Claude (fetch cards/lists)
 - [x] Rolling-state store (yesterday's plan, what slipped, carried-forward priorities)
 - [x] System prompt assembles: profile + rolling state + live calendar + Trello
+- [x] Widen the default calendar context to include recent history (past 3
+      days) alongside the 14-day lookahead, so Jarvis has context on what's
+      already happened today, not just what's ahead (`get_upcoming_events`)
 
-## Phase 2 — Calendar writes + message drafts  ✅ COMPLETE
+## Phase 2 — Calendar writes + message drafts ⏳ IN PROGRESS
 
 Act on the plan once trusted. Hybrid trust model: Jarvis freely
 creates/moves/deletes its **own** tagged events; moving/deleting **anyone
@@ -178,6 +181,24 @@ else's** event is queued for Ben's approval in the app.
     location outright (see "Google Maps integration")
 - [x] iOS: mirror the approval/copy view (done in Phase 2.5 — iOS Interface)
 - [x] Deploy and verify on the Pi (tested locally only so far)
+- [x] Surface free/busy status and the Calendar UI colour on every event
+      (`get_event`, `get_events_in_range`, `create_event`, `modify_event`,
+      `copy_event`); `create_event`/`modify_event` can also set them
+      (`busy`, `color_id`). An event marked free (`[FREE]` in the prompt) is
+      informational only — the system prompt and the far-out conflict check
+      both treat it as never being a diary clash.
+- [ ] Enforce default busy/free colours per calendar in code, not just prompt
+      guidance (currently `prompt.py` just tells Jarvis the Joint calendar's
+      convention — Basil for busy, Sage for free — but nothing stops the
+      model forgetting or omitting `color_id`)
+  - Needs a reference table of calendar → {busy colour, free colour} (starting
+    with Joint: busy=Basil (10), free=Sage (2)); keyed by calendar_id since
+    calendar names aren't stable/unique
+  - `create_event`/`modify_event` in `calendar_tool.py` should fall back to
+    the table's colour when the caller doesn't pass `color_id` and the
+    calendar has an entry
+- [ ] Deploy and verify the busy/free + colour work on the Pi (tested locally
+      only so far)
 
 ## Google Maps integration  ✅ COMPLETE
 
@@ -340,6 +361,7 @@ Not building: an in-app calendar/Trello view. Jarvis's writes already show up in
 
 ## Later — earn-their-place TODOs
 
+- [ ] Test how JARVIS performs with a Sonnet instead of a Haiku brain
 - [ ] Give JARVIS an email address so I can forward tasks to him
 - [ ] Realtime cloud voice API (nicer, customisable voice) instead of Apple TTS
 - [ ] Work calendar via Microsoft Graph / Outlook (security permitting)

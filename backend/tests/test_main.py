@@ -299,6 +299,29 @@ def test_create_event_warns_on_conflict_far_out(monkeypatch):
     assert "Warning" in result and "Standup" in result
 
 
+def test_create_event_does_not_warn_on_free_conflict_far_out(monkeypatch):
+    """An overlapping event marked free (busy=False) is informational only and
+    must not be reported as a clash."""
+    monkeypatch.setattr(main.calendar_tool, "create_event", lambda *a, **kw: None)
+    monkeypatch.setattr(
+        main.calendar_tool,
+        "find_conflicts",
+        lambda start, end: [
+            {"summary": "Emma's reminder", "start": "2027-01-02T09:00:00+00:00", "busy": False}
+        ],
+    )
+    state = _state()
+
+    result = main.execute_tool(
+        "create_event",
+        {"summary": "Deep work", "start": "2027-01-02T09:00:00+00:00", "end": "2027-01-02T10:00"},
+        state,
+        {"draft": False},
+    )
+
+    assert "Warning" not in result
+
+
 def test_list_events_includes_location_and_description(monkeypatch):
     """Regression test: Jarvis previously had no way to see an existing event's
     location or description, since list_events dropped both fields."""
