@@ -45,6 +45,7 @@ xcodebuild \
   -configuration "$CONFIGURATION" \
   -destination "platform=iOS,name=$DEVICE_NAME" \
   -derivedDataPath "$DERIVED_DATA" \
+  -allowProvisioningUpdates \
   build
 
 APP_PATH="$(find "$DERIVED_DATA/Build/Products/$CONFIGURATION-iphoneos" -maxdepth 1 -iname "*.app" | head -1)"
